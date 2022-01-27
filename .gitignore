@@ -1,0 +1,13 @@
+__pycache__/
+
+# django files
+src/ipa-tuura/db.sqlite3
+src/ipa-tuura/scimv2bridge/migrations/
+
+# doc
+/doc/_build
+/doc/.venv
+!/doc/Makefile
+
+# In-tree build files
+*~

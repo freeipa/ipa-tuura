@@ -1,0 +1,16 @@
+<! --
+#
+# Copyright (C) 2022  FreeIPA Contributors see COPYING for license
+#
+-->
+
+{% extends 'creds/base.html' %}
+{% block content %}
+    <p>Credentials validation using PAM</p>
+    <p>{{ message }}</p>
+    <form method="post">
+        {{ form.as_p }}
+        {% csrf_token %}
+        <button type="submit" >Submit</button>
+    </form>
+{% endblock content %}

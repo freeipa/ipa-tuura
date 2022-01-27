@@ -1,0 +1,9 @@
+#
+# Copyright (C) 2022  FreeIPA Contributors see COPYING for license
+#
+
+django
+django-scim2
+django-extensions
+django-oauth-toolkit
+python-pam
