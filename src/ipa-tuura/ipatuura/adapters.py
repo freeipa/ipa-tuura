@@ -7,7 +7,7 @@ import logging
 from django.contrib.auth.models import BaseUserManager
 from django.db import transaction
 
-from django_scim.adapters import SCIMGroup, SCIMUser
+from django_scim.adapters import SCIMGroup, SCIMUser, SCIMMixin
 from ipatuura.ipa import IPA
 
 
@@ -160,3 +160,7 @@ class SCIMGroup(SCIMGroup):
         Return the displayName of the group per the SCIM spec.
         """
         return self.obj.scim_display_name
+
+
+class DomainAdapter(SCIMMixin):
+    id_field = 'domain'

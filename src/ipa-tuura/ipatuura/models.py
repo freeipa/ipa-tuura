@@ -320,3 +320,7 @@ class Group(AbstractSCIMGroupMixin):
         else:
             self._user_set = CustomGroupUserRelationManager()
             return self._user_set
+
+
+class Domain(models.Model):
+    domain = models.CharField(primary_key=True)
