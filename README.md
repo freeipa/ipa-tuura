@@ -28,6 +28,10 @@ $ cd $IPA_TUURA/src/install
 $ python prepare_sssd.py
 ```
 
+.. note:
+   If resolving IPA - AD Trust users is required, the prepare_sssd.py script needs
+   to be run on IPA servers as well.
+
 ### Django preparation
 
 Create and activate a python virtual env
