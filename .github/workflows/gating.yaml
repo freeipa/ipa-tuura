@@ -12,35 +12,31 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Set up Python 3.10
-        uses: actions/setup-python@v2
-        with:
-          python-version: "3.10"
-
-      - name: Install pip
+      - name: Setup Podman
         run: |
-          python -m pip install --upgrade pip
+          sudo apt update
+          sudo apt-get -y install podman
+          podman pull fedora:38
 
-      - name: Checkout repository
+      - name: Get source
         uses: actions/checkout@v3
+        with:
+          path: 'ipa-tuura'
 
-      - name: Install dependencies
+      - name: Create container and run tests
         run: |
-          pip install -r src/install/requirements.txt
-
-      # TBD: use sssd-container image with system dependencies included
-      - name: Install system dependencies
-        run: |
-          sudo apt install build-essential libdbus-glib-1-dev libgirepository1.0-dev
-          pip install dbus-python
-
-      - name: Install flake8
-        run: pip install flake8
-
-      - name: Lint with Flake8
-        run: |
-          flake8 . --ignore E265,E123 --exclude ./src/ipa-tuura/root/settings.py,./src/ipa-tuura/ipatuura/migrations/0001_initial.py
-
-      - name: Run Tests
-        run: |
-          python src/ipa-tuura/manage.py test
+          {
+              echo 'FROM fedora:38'
+              echo '# set TZ to ensure the test using timestamp'
+              echo 'ENV TZ=Europe/Madrid'
+              echo 'RUN dnf -y update'
+              echo 'RUN dnf -y install python3-sssdconfig maven unzip python3-pip git python3-netifaces python3-devel krb5-devel gcc sssd-dbus dbus-devel glibc glib2-devel dbus-daemon python-devel openldap-devel python-ipalib'
+              echo 'RUN dnf clean all'
+              echo 'COPY ipa-tuura ipa-tuura'
+              echo 'WORKDIR /ipa-tuura'
+              echo 'RUN pip install -r src/install/requirements.txt'
+              echo 'RUN pip install flake8 dbus-python python-ldap'
+              echo 'RUN flake8 . --ignore E265,E123 --exclude ./src/ipa-tuura/root/settings.py,./src/ipa-tuura/ipatuura/migrations/0001_initial.py,./ipatuura-env/*,./src/ipa-tuura/domains/migrations/0001_initial.py'
+              echo 'RUN python3 src/ipa-tuura/manage.py test'
+          } > podmanfile
+          podman build --tag gatingtest -f ./podmanfile
