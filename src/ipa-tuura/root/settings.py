@@ -44,6 +44,8 @@ INSTALLED_APPS = [
     'django_scim',
     'ipatuura',
     'creds',
+    'rest_framework',
+    'domains',
 ]
 
 MIDDLEWARE = [
