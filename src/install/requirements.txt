@@ -11,3 +11,5 @@ python-pam
 djangorestframework
 markdown
 django-filter
+django-rest-swagger
+factory-boy
