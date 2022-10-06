@@ -24,4 +24,5 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('scim/v2/', include('django_scim.urls')),
     path('creds/', include('creds.urls')),
+    path('domains/v1/', include('domains.urls')),
 ]

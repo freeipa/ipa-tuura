@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     'ipatuura',
     'creds',
     'rest_framework',
+    'domains',
 ]
 
 MIDDLEWARE = [
