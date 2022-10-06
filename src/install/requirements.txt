@@ -7,3 +7,7 @@ django-scim2
 django-extensions
 django-oauth-toolkit
 python-pam
+# admin/domains endpoint
+djangorestframework
+markdown
+django-filter
