@@ -1,0 +1,46 @@
+---
+name: Unit tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    name: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v2
+        with:
+          python-version: "3.10"
+
+      - name: Install pip
+        run: |
+          python -m pip install --upgrade pip
+
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Install dependencies
+        run: |
+          pip install -r src/install/requirements.txt
+
+      # TBD: use sssd-container image with system dependencies included
+      - name: Install system dependencies
+        run: |
+          sudo apt install build-essential libdbus-glib-1-dev libgirepository1.0-dev
+          pip install dbus-python
+
+      - name: Install flake8
+        run: pip install flake8
+
+      - name: Lint with Flake8
+        run: |
+          flake8 . --ignore E265,E123,F821 --exclude ./src/ipa-tuura/root/settings.py
+
+      - name: Run Tests
+        run: |
+          python src/ipa-tuura/manage.py test
