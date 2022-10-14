@@ -43,14 +43,6 @@ Install the requirements
 $ pip install -r $IPA_TUURA/src/install/requirements.txt
 ```
 
-Prepare the models and create the local database
-
-```bash
-$ cd $IPA_TUURA/src/ipa-tuura
-$ python manage.py makemigrations ipatuura
-$ python manage.py migrate
-```
-
 Create the djangoadmin user and start the ipa-tuura server
 
 Note: do not use "admin" name as it conflicts with IPA "admin" user
