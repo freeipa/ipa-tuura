@@ -4,9 +4,8 @@
 
 from django.db import NotSupportedError
 from django_scim.filters import UserFilterQuery, GroupFilterQuery
-from itertools import chain
-from ipatuura.models import User, SSSDUserToUserModel
-from ipatuura.models import Group, SSSDGroupToGroupModel
+from ipatuura.models import SSSDUserToUserModel
+from ipatuura.models import SSSDGroupToGroupModel
 from ipatuura.sssd import SSSD, SSSDNotFoundException
 
 

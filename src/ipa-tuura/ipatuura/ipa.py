@@ -4,32 +4,36 @@
 
 import logging
 import os
-import tempfile
 import gssapi
 import uuid
 import six
 import ldap
 import ldap.modlist as modlist
-import subprocess
-import sys
 import SSSDConfig
+import datetime
 
 from django.conf import settings
 from ipalib.krb_utils import get_credentials_if_valid
 from ipalib import api
 from ipalib.errors import EmptyModlist
 from ipalib.facts import is_ipa_client_configured
-from ipalib.install.kinit import kinit_keytab, kinit_password
-from ipapython import admintool, ipaldap
-from ipapython.dn import DN, RDN
+from ipalib.install.kinit import kinit_keytab
+from ipapython import admintool
+from ipapython.dn import DN
+from ipapython.dnsutil import DNSName
 from ipapython.kerberos import Principal
 from decimal import Decimal
+from cryptography import x509 as crypto_x509
+from cryptography.hazmat.primitives import serialization as x509
 
 if six.PY3:
     unicode = str
 
 
 logger = logging.getLogger(__name__)
+
+
+LDAP_GENERALIZED_TIME_FORMAT = "%Y%m%d%H%M%SZ"
 
 
 class IPANotFoundException(Exception):
@@ -158,11 +162,11 @@ class IPAAPI(admintool.AdminTool):
                 sn=scim_user.obj.last_name,
                 mail=scim_user.obj.email
                 )
-        except EmptyModlist as e:
+        except EmptyModlist:
             logger.debug("No modification for user {}".format(
                 scim_user.obj.username))
             return
-        except Exception as e:
+        except Exception:
             raise IPANotFoundException(
                 "User {} not found".format(scim_user.obj.username)
                 )
@@ -180,7 +184,7 @@ class IPAAPI(admintool.AdminTool):
             result = api.Command['user_del'](
                 uid=scim_user.obj.username
                 )
-        except Exception as e:
+        except Exception:
             raise IPANotFoundException(
                 "User {} not found".format(scim_user.obj.username)
                 )
@@ -303,7 +307,8 @@ class LDAP:
         elif val is None:
             return None
         else:
-            raise TypeError("attempt to pass unsupported type to ldap, value=%s type=%s" %(val, type(val)))
+            raise TypeError("attempt to pass unsupported type to ldap, "
+                            "value=%s type=%s" % (val, type(val)))
 
     def add(self, scim_user):
         """
@@ -313,7 +318,10 @@ class LDAP:
         """
         attrs = {}
         # TODO: objectclasses should be propagated from keycloak
-        attrs['objectclass'] = [b'inetOrgPerson', b'organizationalPerson', b'person', b'top']
+        attrs['objectclass'] = [b'inetOrgPerson',
+                                b'organizationalPerson',
+                                b'person',
+                                b'top']
         attrs['cn'] = self.encode(scim_user.obj.username)
         attrs['mail'] = self.encode(scim_user.obj.email)
         attrs['givenname'] = self.encode(scim_user.obj.first_name)
@@ -339,7 +347,10 @@ class LDAP:
         """
         attrs = {}
         # TODO: objectclasses should be propagated from keycloak
-        attrs['objectclass'] = [b'inetOrgPerson', b'organizationalPerson', b'person', b'top']
+        attrs['objectclass'] = [b'inetOrgPerson',
+                                b'organizationalPerson',
+                                b'person',
+                                b'top']
         attrs['cn'] = self.encode(scim_user.obj.username)
         attrs['mail'] = self.encode(scim_user.obj.email)
         attrs['givenname'] = self.encode(scim_user.obj.first_name)
@@ -356,7 +367,6 @@ class LDAP:
             desc = e.args[0]['desc'].strip()
             info = e.args[0].get('info', '').strip()
             logger.error(f'LDAP Error: {desc}: {info}')
-
 
     def delete(self, scim_user):
         """
@@ -381,7 +391,8 @@ class AD:
     Initialization of the LDAP AD writable interface
     """
     def __init__(self):
-	    pass
+        pass
+
     def add(self, scim_user):
         """
         Add a new user
@@ -416,9 +427,11 @@ class _IPA():
         Instantiate the writable interface depending on the current
         configuration settings.py: SCIM_SERVICE_PROVIDER['WRITABLE_IFACE']
         """
-        self._apiconn = self._write(settings.SCIM_SERVICE_PROVIDER['WRITABLE_IFACE'])
+        self._apiconn = self._write(
+            settings.SCIM_SERVICE_PROVIDER['WRITABLE_IFACE']
+        )
 
-    def _write(self, iface = "ipa"):
+    def _write(self, iface="ipa"):
         """
         Factory Method
         """

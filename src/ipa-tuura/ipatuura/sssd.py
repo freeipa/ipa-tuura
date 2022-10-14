@@ -137,7 +137,7 @@ class _SSSD:
         try:
             group_path = self._groups_iface.FindByName(name)
             return self._get_group_from_path(group_path, retrieve_members)
-        except dbus.exceptions.DBusException as e:
+        except dbus.exceptions.DBusException:
             raise SSSDNotFoundException("Group {} not found".format(name))
 
     def find_group_by_id(self, id, retrieve_members=False):
@@ -152,7 +152,7 @@ class _SSSD:
         try:
             group_path = self._groups_iface.FindByID(id)
             return self._get_group_from_path(group_path, retrieve_members)
-        except dbus.exceptions.DBusException as e:
+        except dbus.exceptions.DBusException:
             raise SSSDNotFoundException("Group {} not found".format(id))
 
     def _get_user_from_path(self, user_path, retrieve_groups=False):
@@ -210,7 +210,7 @@ class _SSSD:
         try:
             user_path = self._users_iface.FindByName(username)
             return self._get_user_from_path(user_path, retrieve_groups)
-        except dbus.exceptions.DBusException as e:
+        except dbus.exceptions.DBusException:
             raise SSSDNotFoundException("User {} not found".format(username))
 
     def find_user_by_id(self, id, retrieve_groups=False):
@@ -225,7 +225,7 @@ class _SSSD:
         try:
             user_path = self._users_iface.FindByID(id)
             return self._get_user_from_path(user_path, retrieve_groups)
-        except dbus.exceptions.DBusException as e:
+        except dbus.exceptions.DBusException:
             raise SSSDNotFoundException("User {} not found".format(id))
 
     def find_user_groups(self, username):
@@ -238,14 +238,14 @@ class _SSSD:
         """
 
         try:
-            groups = self._sssd_iface.GetUserGroups(name)
+            groups = self._sssd_iface.GetUserGroups(username)
             set_of_groups = {str(x) for x in groups}
             sssdgroups = []
             for grp in set_of_groups:
                 sssdgroup = self.find_group_by_name(grp)
                 sssdgroups.append(sssdgroup)
             return sssdgroups
-        except dbus.exceptions.DBusException as e:
+        except dbus.exceptions.DBusException:
             raise SSSDNotFoundException("User {} not found".format(username))
 
 

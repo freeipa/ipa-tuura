@@ -6,12 +6,13 @@ import logging
 
 from django.contrib.auth.models import BaseUserManager
 from django.db import transaction
-
+from django_scim import exceptions
 from django_scim.adapters import SCIMGroup, SCIMUser
 from ipatuura.ipa import IPA
 
 
 logger = logging.getLogger(__name__)
+
 
 class SCIMUser(SCIMUser):
     @property
@@ -53,7 +54,7 @@ class SCIMUser(SCIMUser):
         self.obj.last_name = d.get('name', {}).get('familyName') or ''
         self.parse_email(d.get('emails'))
         if self.is_new_user and not self.obj.email:
-            raise scim_exceptions.BadRequestError('Empty email value')
+            raise exceptions.BadRequestError('Empty email value')
         self.obj.scim_username = d.get('userName')
         self.obj.scim_external_id = d.get('externalId') or ''
         cleartext_password = d.get('password')
@@ -92,7 +93,6 @@ class SCIMUser(SCIMUser):
 
             self.obj.email = email
 
-
     @property
     def emails(self):
         """
@@ -109,7 +109,6 @@ class SCIMUser(SCIMUser):
             return [{'value': self.obj.email, 'primary': True}]
         else:
             return []
-
 
     @property
     def is_new_user(self):
@@ -144,7 +143,6 @@ class SCIMUser(SCIMUser):
                 logger.info(f'User saved. User id {self.obj.id}')
         except Exception as e:
             raise e
-
 
     def delete(self):
         self.obj.is_active = False
