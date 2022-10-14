@@ -24,7 +24,7 @@ def activate_ifp(sssdconfig):
     try:
         sssdconfig.activate_service('ifp')
         ifp = sssdconfig.get_service('ifp')
-    except NoServiceError as e:
+    except SSSDConfig.NoServiceError as e:
         print("ifp service not enabled, "
               "ensure the host is properly configured")
         raise e

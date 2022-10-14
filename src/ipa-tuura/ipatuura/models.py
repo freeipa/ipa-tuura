@@ -41,7 +41,7 @@ def SSSDUserToUserModel(sssd_if, sssduser):
             sssdgroup = sssd_if.find_group_by_name(groupname)
             groupmodel = SSSDGroupToGroupModel(sssd_if, sssdgroup)
             groups.append(groupmodel)
-        except SSSDNotFoundException as e:
+        except SSSDNotFoundException:
             # TBD add logging
             pass
     usermodel.scim_groups.set(groups)
@@ -71,7 +71,7 @@ def SSSDGroupToGroupModel(sssd_if, sssdgroup):
             sssduser = sssd_if.find_user_by_name(username)
             usermodel = SSSDUserToUserModel(sssd_if, sssduser)
             users.append(usermodel)
-        except SSSDNotFoundException as e:
+        except SSSDNotFoundException:
             # TBD add logging
             pass
     groupmodel.user_set.set(users)
@@ -221,8 +221,9 @@ class User(AbstractSCIMUserMixin, AbstractBaseUser):
         return self.first_name + ' ' + self.last_name
 
     def get_short_name(self):
-        return self.first_name + \
-               (' ' + self.last_name[0] if self.last_name else '')
+        return self.first_name + (
+            ' ' + self.last_name[0] if self.last_name else ''
+        )
 
     @property
     def username(self):
