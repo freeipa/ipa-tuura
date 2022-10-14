@@ -39,7 +39,7 @@ jobs:
 
       - name: Lint with Flake8
         run: |
-          flake8 . --ignore E265,E123,F821 --exclude ./src/ipa-tuura/root/settings.py
+          flake8 . --ignore E265,E123 --exclude ./src/ipa-tuura/root/settings.py,./src/ipa-tuura/ipatuura/migrations/0001_initial.py
 
       - name: Run Tests
         run: |
