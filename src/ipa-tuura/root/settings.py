@@ -139,10 +139,20 @@ SCIM_SERVICE_PROVIDER = {
     'USER_ADAPTER': 'ipatuura.adapters.SCIMUser',
     'GROUP_MODEL': 'ipatuura.models.Group',
     'GROUP_ADAPTER': 'ipatuura.adapters.SCIMGroup',
+    'SERVICE_PROVIDER_CONFIG_MODEL': 'ipatuura.models.ServiceProviderConfig',
     'USER_FILTER_PARSER': 'ipatuura.utils.SCIMUserFilterQuery',
     'GROUP_FILTER_PARSER': 'ipatuura.utils.SCIMGroupFilterQuery',
-    # TODO: read from keycloak/sssd.conf
-    # WRITABLE_IFACE values: ipa, ldap, ad
+    'DOCUMENTATION_URI': 'https://www.rfc-editor.org/rfc/rfc7644',
+    'AUTHENTICATION_SCHEMES': [
+        {
+            'type': 'httpbasic',
+            'name': 'HTTP Basic',
+            'description': 'Authentication scheme using the HTTP Basic Standard',
+            'specUri': 'http://www.rfc-editor.org/info/rfc2617',
+            'documentationUri': '',
+        },
+    ],
+    # TODO administrative end-point must configure these values:
     'WRITABLE_IFACE': 'ipa',
     'WRITABLE_USER': 'admin',
 }
