@@ -1,0 +1,141 @@
+services:
+  dns:
+    restart: always
+    image: ${REGISTRY}/ci-dns:latest
+    container_name: dns
+    env_file: ./env.containers
+    volumes:
+    - ./data/configs/dnsmasq.conf:/etc/dnsmasq.conf
+    cap_add:
+    - NET_RAW
+    - NET_ADMIN
+    security_opt:
+    - apparmor=unconfined
+    - label=disable
+    - seccomp=unconfined
+    networks:
+      sssd:
+        ipv4_address: 172.16.100.2
+
+  ipa:
+    image: ${REGISTRY}/ci-ipa:${TAG}
+    container_name: ipa
+    hostname: master.ipa.test
+    dns: 172.16.100.2
+    env_file: ./env.containers
+    volumes:
+    - ./shared:/shared:rw
+    cap_add:
+    - SYS_ADMIN
+    - SYS_PTRACE
+    - AUDIT_WRITE
+    security_opt:
+    - apparmor=unconfined
+    - label=disable
+    - seccomp=unconfined
+    networks:
+      sssd:
+        ipv4_address: 172.16.100.10
+
+  keycloak:
+    image: ${REGISTRY}/keycloak:${TAG}
+    container_name: keycloak
+    hostname: master.keycloak.test
+    dns: 172.16.100.2
+    env_file: ./env.containers
+    volumes:
+    - ./shared:/shared:rw
+    cap_add:
+    - SYS_ADMIN
+    - SYS_PTRACE
+    - AUDIT_WRITE
+    security_opt:
+    - apparmor=unconfined
+    - label=disable
+    - seccomp=unconfined
+    networks:
+      sssd:
+        ipv4_address: 172.16.100.11
+  nextcloud:
+    image: ${REGISTRY}/nextcloud:${TAG}
+    container_name: nextcloud
+    hostname: master.nextcloud.test
+    dns: 172.16.100.2
+    env_file: ./env.containers
+    volumes:
+    - ./shared:/shared:rw
+    cap_add:
+    - SYS_ADMIN
+    - SYS_PTRACE
+    - AUDIT_WRITE
+    security_opt:
+    - apparmor=unconfined
+    - label=disable
+    - seccomp=unconfined
+    networks:
+      sssd:
+        ipv4_address: 172.16.100.12
+  mariadb:
+    image: ${REGISTRY}/mariadb:${TAG}
+    container_name: mariadb
+    hostname: master.mariadb.test
+    dns: 172.16.100.2
+    env_file: ./env.containers
+    volumes:
+    - ./shared:/shared:rw
+    cap_add:
+    - SYS_ADMIN
+    - SYS_PTRACE
+    - AUDIT_WRITE
+    security_opt:
+    - apparmor=unconfined
+    - label=disable
+    - seccomp=unconfined
+    networks:
+      sssd:
+        ipv4_address: 172.16.100.13
+  ldap:
+    image: ${REGISTRY}/ci-ldap:${TAG}
+    container_name: ldap
+    hostname: master.ldap.test
+    dns: 172.16.100.2
+    env_file: ./env.containers
+    volumes:
+    - ./shared:/shared:rw
+    cap_add:
+    - SYS_PTRACE
+    - AUDIT_WRITE
+    security_opt:
+    - apparmor=unconfined
+    - label=disable
+    - seccomp=unconfined
+    networks:
+      sssd:
+        ipv4_address: 172.16.100.20
+  client:
+    image: ${REGISTRY}/ci-client:${TAG}
+    container_name: client
+    hostname: client.test
+    dns: 172.16.100.2
+    env_file: ./env.containers
+    volumes:
+    - ./shared:/shared:rw
+    cap_add:
+    - SYS_ADMIN
+    - SYS_PTRACE
+    - AUDIT_WRITE
+    security_opt:
+    - apparmor=unconfined
+    - label=disable
+    - seccomp=unconfined
+    networks:
+      sssd:
+        ipv4_address: 172.16.100.40
+networks:
+  sssd:
+    name: sssd-ci
+    driver: bridge
+    ipam:
+     config:
+       - subnet: 172.16.100.0/24
+         gateway: 172.16.100.1
