@@ -65,7 +65,18 @@ If connecting from another system, update the ALLOWED_HOSTS line `root/settings.
 ALLOWED_HOSTS = ['192.168.122.221', 'localhost', '127.0.0.1']
 ```
 
-And run the following to have django listen on all interfaces:
+as well as the NETLOC from SCIM_SERVICE_PROVIDER settings:
+
+```bash
+SCIM_SERVICE_PROVIDER = {
+    'NETLOC': 'localhost',
+...
+```
+and replace `localhost` by the IP address or hostname where the service is deployed. This way,
+the /ServiceProviderConfig endpoint will return the location of the app implementing the SCIM
+api.
+
+Finally, run the following to have django listen on all interfaces:
 
 ```bash
 python manage.py runserver 0.0.0.0:8000

@@ -2,14 +2,21 @@
 # Copyright (C) 2022  FreeIPA Contributors see COPYING for license
 #
 
+from urllib.parse import urljoin
+
 from django.contrib.auth.models import AbstractBaseUser
 from django.contrib.auth.models import UserManager
 from django.contrib.auth.models import GroupManager
 from django.db import models
 from django.db.utils import NotSupportedError
 from django.utils.translation import gettext_lazy as _
+from django.urls import reverse
 
+from django_scim.models import SCIMServiceProviderConfig
 from django_scim.models import AbstractSCIMGroupMixin, AbstractSCIMUserMixin
+from django_scim import constants
+from django_scim.settings import scim_settings
+from django_scim.utils import get_base_scim_location_getter
 
 from ipatuura.sssd import SSSD, SSSDNotFoundException
 
@@ -321,3 +328,61 @@ class Group(AbstractSCIMGroupMixin):
         else:
             self._user_set = CustomGroupUserRelationManager()
             return self._user_set
+
+
+class ServiceProviderConfig(SCIMServiceProviderConfig):
+    """
+    Service Provider Config model.
+    This overrides SCIMServiceProviderConfig to describe the
+    authentication_schemes and features that are implemented
+    by ipa-tuura.
+    """
+    def __init__(self, request=None):
+        self.request = request
+
+    @property
+    def meta(self):
+        return {
+            'location': self.location,
+            'resourceType': 'ServiceProviderConfig',
+        }
+
+    @property
+    def location(self):
+        path = reverse('scim:service-provider-config')
+        return urljoin(get_base_scim_location_getter()(self.request), path)
+
+    def to_dict(self):
+        return {
+            'schemas': [constants.SchemaURI.SERVICE_PROVIDER_CONFIG],
+            'documentationUri': scim_settings.DOCUMENTATION_URI,
+            # In order to support the PATCH method both:
+            # - ScimUser.handle_add
+            # - ScimUser.handle_replace
+            # must be implemented.
+            'patch': {
+                'supported': False,
+            },
+            'bulk': {
+                'supported': False,
+                'maxOperations': 1000,
+                'maxPayloadSize': 1048576,
+            },
+            # Django-SCIM2 does not fully support the all the
+            # SCIM2.0 filtering options (Section 3.4.2.2 of [RFC7644])
+            'filter': {
+                'supported': False,
+                'maxResults': 50,
+            },
+            'changePassword': {
+                'supported': True,
+            },
+            'sort': {
+                'supported': False,
+            },
+            'etag': {
+                'supported': False,
+            },
+            'authenticationSchemes': scim_settings.AUTHENTICATION_SCHEMES,
+            'meta': self.meta,
+        }
