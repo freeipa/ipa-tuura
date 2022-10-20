@@ -12,7 +12,7 @@ def activate_ifp(sssdconfig):
     """
     Configure the ifp section of sssd.conf
 
-    Activate the ifp service and add the following user_attributes
+    Add, then activate the ifp service and add the following user_attributes
     to the [ifp] section:
     +mail, +givenname, +sn, +lock
 
@@ -21,6 +21,15 @@ def activate_ifp(sssdconfig):
     and added in the positive list.
     The other attributes are kept.
     """
+
+    try:
+        sssdconfig.new_service('ifp')
+    except SSSDConfig.ServiceAlreadyExists:
+        pass
+    except Exception as e:
+        print("Unable to add ifp section to SSSD Configuration")
+        raise e
+
     try:
         sssdconfig.activate_service('ifp')
         ifp = sssdconfig.get_service('ifp')
