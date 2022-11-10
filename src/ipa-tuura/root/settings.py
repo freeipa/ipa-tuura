@@ -44,6 +44,9 @@ INSTALLED_APPS = [
     'django_scim',
     'ipatuura',
     'creds',
+    'rest_framework',
+    'domains',
+    'rest_framework_swagger',
 ]
 
 MIDDLEWARE = [
@@ -146,3 +149,10 @@ SCIM_SERVICE_PROVIDER = {
     'WRITABLE_IFACE': 'ipa',
     'WRITABLE_USER': 'admin',
 }
+
+# admin endpoint so that we can handle permissions and required fields only for authenticated users
+#REST_FRAMEWORK = {
+#    'DEFAULT_PERMISSION_CLASSES': ('rest_framework.permissions.IsAuthenticated',)
+#}
+
+REST_FRAMEWORK = { 'DEFAULT_SCHEMA_CLASS': 'rest_framework.schemas.coreapi.AutoSchema' }
