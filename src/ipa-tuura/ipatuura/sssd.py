@@ -85,9 +85,9 @@ class _SSSD:
                 DBUS_SSSD_NAME, DBUS_SSSD_GROUPS_PATH)
             self._groups_iface = dbus.Interface(
                 self._groups_obj, DBUS_SSSD_GROUPS_IF)
-        except dbus.DBusException as e:
+        except dbus.DBusException:
             # TBD: add some logging
-            raise e
+            raise SSSDNotFoundException
 
     def _get_user_name(self, user_path):
         """
