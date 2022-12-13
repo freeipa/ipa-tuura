@@ -1,0 +1,32 @@
+FROM fedora:latest
+
+MAINTAINER Scott Poore <spoore@redhat.com>
+
+ENV DJANGO_SUPERUSER_PASSWORD: Secret123 \
+    DJANGO_SUPERUSER_USERNAME: scim \
+    DJANGO_SUPERUSER_EMAIL: scim@ipa.test
+
+EXPOSE 8000
+
+WORKDIR /ipa-tuura
+
+COPY ipa-tuura /ipa-tuura
+COPY install/ipa-tuura.service /etc/systemd/system/ipa-tuura.service
+COPY install/ipa-tuura.env /etc/sysconfig/ipa-tuura.env
+COPY install/requirements.txt /ipa-tuura/requirements.txt
+
+# Need to install packages before linking service file so that the
+# proper filesystem structure is in place for systemd
+RUN dnf -y install sssd ipa-client realmd java-11-openjdk-headless \
+           openssl maven unzip python3-pip git python3-netifaces \
+           python3-devel krb5-devel gcc sssd-dbus wget openldap-clients \
+           sssd sssd-ldap oddjob-mkhomedir realmd && \
+    ln -s /etc/systemd/system/ipa-tuura.service \
+          /etc/systemd/system/multi-user.target.wants/ipa-tuura.service && \
+    pip install -r /ipa-tuura/requirements.txt && \
+    source /etc/sysconfig/ipa-tuura.env && \
+    python3 /ipa-tuura/manage.py makemigrations ipatuura && \
+    python3 /ipa-tuura/manage.py migrate && \
+    python3 /ipa-tuura/manage.py createsuperuser --scim_username scim --noinput
+
+CMD ["/usr/sbin/init"]

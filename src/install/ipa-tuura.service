@@ -1,0 +1,17 @@
+[Unit]
+Description=SCIMv2 Bridge Server
+After=network.target
+
+[Service]
+Type=idle
+WorkingDirectory=/ipa-tuura/
+EnvironmentFile=/etc/sysconfig/ipa-tuura.env
+# Fix this later
+# User=scim
+# Group=scim
+ExecStart=/usr/bin/python3 /ipa-tuura/manage.py runserver 0.0.0.0:8000
+TimeoutStartSec=600
+TimeoutStopSec=600
+
+[Install]
+WantedBy=multi-user.target
