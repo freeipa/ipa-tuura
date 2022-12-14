@@ -6,4 +6,4 @@ from django.apps import AppConfig
 
 
 class IpaTuuraConfig(AppConfig):
-    name = 'ipatuura'
+    name = "ipatuura"

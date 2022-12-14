@@ -15,5 +15,3 @@ Welcome to ipa-tuura's documentation!
    :caption: Contents:
 
    ../README.md
-
-
