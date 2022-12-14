@@ -1,5 +1,5 @@
 ---
-name: Unit tests
+name: Pull request pre-check build & test
 
 on:
   pull_request:
@@ -7,10 +7,17 @@ on:
     branches: [main]
 
 jobs:
-  build:
-    name: build
+  pre-commit:
     runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+      - uses: pre-commit/action@v3.0.0
 
+  build-fedora-container-on-ubuntu:
+    runs-on: ubuntu-latest
     steps:
       - name: Setup Podman
         run: |
@@ -22,7 +29,7 @@ jobs:
         uses: actions/checkout@v3
         with:
           path: 'ipa-tuura'
-
+# yamllint disable rule:line-length
       - name: Create container and run tests
         run: |
           {
@@ -35,8 +42,7 @@ jobs:
               echo 'COPY ipa-tuura ipa-tuura'
               echo 'WORKDIR /ipa-tuura'
               echo 'RUN pip install -r src/install/requirements.txt'
-              echo 'RUN pip install flake8 dbus-python python-ldap'
-              echo 'RUN flake8 . --ignore E265,E123 --exclude ./src/ipa-tuura/root/settings.py,./src/ipa-tuura/ipatuura/migrations/0001_initial.py,./ipatuura-env/*,./src/ipa-tuura/domains/migrations/0001_initial.py'
+              echo 'RUN pip install dbus-python python-ldap'
               echo 'RUN python3 src/ipa-tuura/manage.py test'
           } > podmanfile
           podman build --tag gatingtest -f ./podmanfile
