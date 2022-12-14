@@ -1,0 +1,6 @@
+[tool.isort]
+atomic = true
+include_trailing_comma = true
+known_first_party = "ipa-tuura"
+line_length = 88
+multi_line_output = 3
