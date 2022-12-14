@@ -1,0 +1,10 @@
+---
+yaml-files:
+  - '*.yaml'
+  - '*.yml'
+  - '.yamllint'
+
+extends: default
+rules:
+  line-length:
+    max: 140

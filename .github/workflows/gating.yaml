@@ -1,5 +1,5 @@
 ---
-name: Unit tests
+name: Pull request pre-check build & test
 
 on:
   pull_request:
@@ -7,10 +7,17 @@ on:
     branches: [main]
 
 jobs:
-  build:
-    name: build
+  pre-commit:
     runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+      - uses: pre-commit/action@v3.0.0
 
+  test-on-ubuntu:
+    runs-on: ubuntu-latest
     steps:
       - name: Set up Python 3.10
         uses: actions/setup-python@v2
@@ -31,16 +38,8 @@ jobs:
       # TBD: use sssd-container image with system dependencies included
       - name: Install system dependencies
         run: |
-          sudo apt install build-essential libdbus-glib-1-dev libgirepository1.0-dev
+          sudo apt update && sudo apt install build-essential libdbus-glib-1-dev libgirepository1.0-dev
           pip install dbus-python
-
-      - name: Install flake8
-        run: pip install flake8
-
-      - name: Lint with Flake8
-        run: |
-          flake8 . --max-line-length 88 --ignore E265,E123 --exclude \
-              ./src/ipa-tuura/root/settings.py,./src/ipa-tuura/ipatuura/migrations/0001_initial.py
 
       - name: Run Tests
         run: |
