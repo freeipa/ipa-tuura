@@ -1,7 +1,7 @@
 services:
   dns:
     restart: always
-    image: ${REGISTRY}/ci-dns:latest
+    image: ${REGISTRY}/ci-dns:${TAG}
     container_name: dns
     env_file: ./env.containers
     volumes:
@@ -14,7 +14,7 @@ services:
     - label=disable
     - seccomp=unconfined
     networks:
-      sssd:
+      ipa-tuura:
         ipv4_address: 172.16.100.2
 
   ipa:
@@ -29,18 +29,22 @@ services:
     - SYS_ADMIN
     - SYS_PTRACE
     - AUDIT_WRITE
+    - AUDIT_CONTROL
+    - SYS_CHROOT
+    - NET_ADMIN
     security_opt:
     - apparmor=unconfined
     - label=disable
     - seccomp=unconfined
     networks:
-      sssd:
+      ipa-tuura:
         ipv4_address: 172.16.100.10
 
-  keycloak:
-    image: ${REGISTRY}/keycloak:${TAG}
-    container_name: keycloak
-    hostname: master.keycloak.test
+  ipa-tuura:
+    #image: quay.io/idmops/bridge:latest
+    image: localhost/ipa-tuura/base:latest
+    container_name: ipa-tuura
+    hostname: ipa-tuura.bridge.test
     dns: 172.16.100.2
     env_file: ./env.containers
     volumes:
@@ -48,14 +52,42 @@ services:
     cap_add:
     - SYS_ADMIN
     - SYS_PTRACE
+    - SYS_CHROOT
+    - NET_ADMIN
     - AUDIT_WRITE
+    - AUDIT_CONTROL
     security_opt:
     - apparmor=unconfined
     - label=disable
     - seccomp=unconfined
     networks:
-      sssd:
-        ipv4_address: 172.16.100.11
+      ipa-tuura:
+        ipv4_address: 172.16.100.14
+
+  keycloak:
+    image: ${REGISTRY}/ci-keycloak:${TAG}
+    #image: quay.io/keycloak/keycloak:${KC_TAG}
+    container_name: keycloak
+    hostname: master.keycloak.test
+    dns: 172.16.100.2
+    env_file: ./env.containers
+    volumes:
+    - ./data/keycloak/scim-user-spi-${PLUGIN_VER}-SNAPSHOT.jar:/opt/keycloak/providers/scim.jar
+    cap_add:
+    - SYS_ADMIN
+    - SYS_PTRACE
+    - SYS_CHROOT
+    - NET_ADMIN
+    - AUDIT_WRITE
+    - AUDIT_CONTROL
+    security_opt:
+    - apparmor=unconfined
+    - label=disable
+    - seccomp=unconfined
+    networks:
+      ipa-tuura:
+        ipv4_address: 172.16.100.70
+
   nextcloud:
     image: ${REGISTRY}/nextcloud:${TAG}
     container_name: nextcloud
@@ -68,13 +100,15 @@ services:
     - SYS_ADMIN
     - SYS_PTRACE
     - AUDIT_WRITE
+    - AUDIT_CONTROL
     security_opt:
     - apparmor=unconfined
     - label=disable
     - seccomp=unconfined
     networks:
-      sssd:
+      ipa-tuura:
         ipv4_address: 172.16.100.12
+
   mariadb:
     image: ${REGISTRY}/mariadb:${TAG}
     container_name: mariadb
@@ -87,13 +121,15 @@ services:
     - SYS_ADMIN
     - SYS_PTRACE
     - AUDIT_WRITE
+    - AUDIT_CONTROL
     security_opt:
     - apparmor=unconfined
     - label=disable
     - seccomp=unconfined
     networks:
-      sssd:
+      ipa-tuura:
         ipv4_address: 172.16.100.13
+
   ldap:
     image: ${REGISTRY}/ci-ldap:${TAG}
     container_name: ldap
@@ -103,39 +139,27 @@ services:
     volumes:
     - ./shared:/shared:rw
     cap_add:
-    - SYS_PTRACE
-    - AUDIT_WRITE
-    security_opt:
-    - apparmor=unconfined
-    - label=disable
-    - seccomp=unconfined
-    networks:
-      sssd:
-        ipv4_address: 172.16.100.20
-  client:
-    image: ${REGISTRY}/ci-client:${TAG}
-    container_name: client
-    hostname: client.test
-    dns: 172.16.100.2
-    env_file: ./env.containers
-    volumes:
-    - ./shared:/shared:rw
-    cap_add:
     - SYS_ADMIN
     - SYS_PTRACE
+    - SYS_CHROOT
+    - NET_ADMIN
     - AUDIT_WRITE
+    - AUDIT_CONTROL
     security_opt:
     - apparmor=unconfined
     - label=disable
     - seccomp=unconfined
     networks:
-      sssd:
-        ipv4_address: 172.16.100.40
+      ipa-tuura:
+        ipv4_address: 172.16.100.20
+
 networks:
-  sssd:
-    name: sssd-ci
+  ipa-tuura:
+    name: ipa-tuura-ci
     driver: bridge
     ipam:
      config:
        - subnet: 172.16.100.0/24
          gateway: 172.16.100.1
+     options:
+        driver: host-local

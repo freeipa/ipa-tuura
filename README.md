@@ -100,3 +100,97 @@ make html
 ```
 
 The generated documentation will be available at `$IPA_TUURA/doc/_build/html/` folder.
+
+
+### Testing
+
+Provided is a docker-compose.yml container based test environment.  Running this
+environment on a system will provide the containers needed for testing some of the
+basic features of ipa-tuura:
+
+* ipa-tuura running SCIMv2 Bridge
+* Keycloak running with the SCIMv2 User Storage plugin
+* FreeIPA to provide IPA service
+* LDAP container to provide LDAP service
+* DNS container to provide static DNS for the test environment
+* Nextcloud to provide End to End application authentication testing
+
+
+First Install required packages needed to run container test environment:
+
+```bash
+sudo dnf -y install podman docker-compose podman-docker \
+                    java-17-openjdk-headless maven dnsmasq
+```
+
+Start podman service:
+
+```bash
+sudo systemctl start podman
+```
+
+Clone this repository:
+
+```bash
+git clone https://github.com/freeipa/ipa-tuura
+cd ipa-tuura
+```
+
+Set SELinux boolean:
+
+```bash
+sudo setsebool -P container_manage_cgroup true
+```
+
+OPTIONAL: Note if you want to setup your local DNS to resolve the container
+hostnames, you can follow these steps:
+
+```bash
+sudo cp data/configs/nm_enable_dnsmasq.conf /etc/NetworkManager/conf.d/
+sudo cp data/configs/nm_zone_test.conf /etc/NetworkManager/dnsmasq.d/
+sudo systemctl disable --now systemd-resolved
+sudo mv /etc/resolv.conf /etc/resolv.conf.ipa-tuura-backup
+sudo systemctl reload NetworkManager
+```
+
+Start containers:
+
+```bash
+sudo make up
+sudo make bridge
+```
+
+Note that `make bridge` runs `src/install/setup_bridge.sh` which allows you to
+override the keycloak and/or ipa-tuura hostnames if you wish to use this elsewhere.
+To do this, just set variables before manually running the script:
+
+```bash
+export KC_HOSTNAME=<keycloak server hostname>
+export TUURA_HOSTNAME=<ipa-tuura server hostname>
+bash src/install/setup_bridge.sh
+```
+
+Note that the container names all start with "kite-" which stands for Keycloak
+Integration Test Environment.  Each container is named after the service it
+provides to make access easier.
+
+Now you can access the containers with either:
+
+```bash
+sudo podman exec -it kite-<service> bash
+```
+
+Or for some containers, you can access with ssh.  To do so, lookup IP from 
+docker-compose.yml file.
+
+```bash
+ssh root@<IP>
+```
+
+To run Keycloak or IPA commands, you can alias the commands like this:
+
+```bash
+alias kcadm='sudo podman exec -it kite-keycloak /opt/keycloak/bin/kcadm.sh'
+alias ipa='sudo podman exec -it kite-ipa ipa'
+```
+

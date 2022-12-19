@@ -11,3 +11,9 @@ src/ipa-tuura/scimv2bridge/migrations/
 
 # In-tree build files
 *~
+
+# env files with secrets
+env.secrets
+
+# keycloak container plugin files
+data/keycloak
