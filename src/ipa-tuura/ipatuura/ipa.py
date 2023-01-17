@@ -195,25 +195,34 @@ class LDAP:
     """
     Initialization of the LDAP writable interface
     """
-
     def __init__(self):
         self._conn = None
-        self._backend = None
-        self._context = "client"
-        self._ccache_dir = None
-        self._ccache_name = None
-
-        # replace by sssd.conf settings.
-        self._base_dn = 'dc=ipa,dc=test'
-        self._uri = 'ldaps://idm.ipa.test'
-        self._tls_cacert = '/etc/ipa/ca.crt'
-
-        # read from keycloak
+        self._users_dn = None
+        self._ldap_uri = None
+        self._ldap_search_base = None
+        self._ldap_user_extra_attrs = None
+        self._user_objectclass = None
+        # TLS
+        self._ldap_tls_cacert = None
         self._sasl_gssapi = ldap.sasl.sasl({}, 'GSSAPI')
-        self._group = 'cn=users,cn=accounts'
-        self._objectClass = None
 
+        # read settings from sssd.conf file
         self._read_sssd_config()
+
+        # TODO: these seetings are not available in sssd.conf file
+        # hence they should be set from domains app
+        # Red Hat Directory Server
+        # users_dn 'cn=users,cn=accounts'
+        # user_objectclass inetOrgPerson
+
+        # Active Directory
+        self._users_dn = 'CN=Users'
+        self._user_objectclass = [
+            b'user',
+            b'organizationalPerson',
+            b'person',
+            b'top'
+        ]
         self._ldap_connect()
 
     def _read_sssd_config(self):
@@ -228,11 +237,12 @@ class LDAP:
         # Read attributes from the domain section
         self._read_ldap_domains(sssdconfig)
 
+    # this function will be useful later on for multi-domains support
     def _read_ldap_domains(self, sssdconfig):
         """
-        Configure the domains with extra attribute mappings
+        Read the domains with extra attribute mappings
 
-        Loop on the configured domains and configure the domain with extra
+        Loop on the configured domains and read the domain with extra
         attribute mappings if the id_provider is "ldap".
         """
         # Configure each ipa/ad/ldap domain
@@ -245,17 +255,17 @@ class LDAP:
 
     def _read_ldap_domain(self, domain):
         """
-        Configure the domain with extra attribute mappings
+        Read the domain with extra attribute mappings from the [domain/<name>]
+        section (default is mail:mail, sn:sn, givenname:givenname)
 
-        Add the following ldap_user_extra_attrs mappings to the [domain/<name>]
-        section:
-        mail:mail, sn:sn, givenname:givenname
-        If the section already defines some mappings, they are kept.
+        ldap_uri, ldap_search_base, ldap_tls_cacert, ldap_user_extra_attrs
         """
         try:
             self._uri = domain.get_option('ldap_uri')
             self._base_dn = domain.get_option('ldap_search_base')
             self._tls_cacert = domain.get_option('ldap_tls_cacert')
+            self._ldap_user_extra_attrs = domain.get_option(
+                'ldap_user_extra_attrs')
         except Exception as e:
             # SSSD configuration does not exist or cannot be parsed
             print("Unable to parse SSSD configuration")
@@ -266,13 +276,14 @@ class LDAP:
         """
         Create a connection to LDAP and bind to it.
         """
+        # TODO enable TLS support
         try:
-            # PYTHON-LDAP
             self._conn = ldap.initialize(self._uri)
-            self._conn.set_option(ldap.OPT_X_TLS_CACERTFILE, self._tls_cacert)
-            self._conn.sasl_interactive_bind_s('', self._sasl_gssapi)
+            self._conn.protocol_version = 3
+            self._conn.set_option(ldap.OPT_REFERRALS, 0)
+            self._conn.simple_bind_s('Administrator@da.test', 'Secret123')
         except Exception as e:
-            logger.error(f'Unable to bind to LDAP server {e}')
+            logger.error(f'Unable to bind to LDAP AD server {e}')
 
     def encode(self, val):
         """
@@ -315,13 +326,19 @@ class LDAP:
         Add a new user
 
         :param scim_user: user object conforming to the SCIM User Schema
+
+        For a RHDS deployment:
+        dc=ipa,dc=com
+          cn=accounts
+            cn=users
+              uid=oneuser
+        For an AD deployment:
+        dc=ad,dc=com
+          cn=users
+            cn=oneuser
         """
         attrs = {}
-        # TODO: objectclasses should be propagated from keycloak
-        attrs['objectclass'] = [b'inetOrgPerson',
-                                b'organizationalPerson',
-                                b'person',
-                                b'top']
+        attrs['objectclass'] = self._user_objectclass
         attrs['cn'] = self.encode(scim_user.obj.username)
         attrs['mail'] = self.encode(scim_user.obj.email)
         attrs['givenname'] = self.encode(scim_user.obj.first_name)
@@ -330,9 +347,10 @@ class LDAP:
 
         self._ldap_connect()
         try:
-            self._conn.add_s("uid={uid},{group},{basedn}".format(
+            # AD: cn, LDAP: uid
+            self._conn.add_s("cn={uid},{usersdn},{basedn}".format(
                 uid=scim_user.obj.username,
-                group=self._group,
+                usersdn=self._users_dn,
                 basedn=self._base_dn), ldif)
         except ldap.LDAPError as e:
             desc = e.args[0]['desc'].strip()
@@ -346,11 +364,7 @@ class LDAP:
         :param scim_user: user object conforming to the SCIM User Schema
         """
         attrs = {}
-        # TODO: objectclasses should be propagated from keycloak
-        attrs['objectclass'] = [b'inetOrgPerson',
-                                b'organizationalPerson',
-                                b'person',
-                                b'top']
+        attrs['objectclass'] = self._user_objectclass
         attrs['cn'] = self.encode(scim_user.obj.username)
         attrs['mail'] = self.encode(scim_user.obj.email)
         attrs['givenname'] = self.encode(scim_user.obj.first_name)
@@ -359,9 +373,9 @@ class LDAP:
 
         self._ldap_connect()
         try:
-            self._conn.modify_s("uid={uid},{group},{basedn}".format(
+            self._conn.modify_s("cn={uid},{usersdn},{basedn}".format(
                 uid=scim_user.obj.username,
-                group=self._group,
+                usersdn=self._users_dn,
                 basedn=self._base_dn), ldif)
         except ldap.LDAPError as e:
             desc = e.args[0]['desc'].strip()
@@ -376,46 +390,14 @@ class LDAP:
         """
         self._ldap_connect()
         try:
-            self._conn.delete_s("uid={uid},{group},{basedn}".format(
+            self._conn.delete_s("cn={uid},{usersdn},{basedn}".format(
                 uid=scim_user.obj.username,
-                group=self._group,
+                usersdn=self._users_dn,
                 basedn=self._base_dn))
         except ldap.LDAPError as e:
             desc = e.args[0]['desc'].strip()
             info = e.args[0].get('info', '').strip()
             logger.error(f'LDAP Error: {desc}: {info}')
-
-
-class AD:
-    """
-    Initialization of the LDAP AD writable interface
-    """
-    def __init__(self):
-        pass
-
-    def add(self, scim_user):
-        """
-        Add a new user
-
-        :param scim_user: user object conforming to the SCIM User Schema
-        """
-        pass
-
-    def modify(self, scim_user):
-        """
-        Modify user
-
-        :param scim_user: user object conforming to the SCIM User Schema
-        """
-        pass
-
-    def delete(self, scim_user):
-        """
-        Delete user
-
-        :param scim_user: user object conforming to the SCIM User Schema
-        """
-        pass
 
 
 class _IPA():
@@ -438,7 +420,6 @@ class _IPA():
         ifaces = {
             "ipa": IPAAPI,
             "ldap": LDAP,
-            "ad": AD,
         }
         return ifaces[iface]()
 
