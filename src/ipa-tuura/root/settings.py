@@ -131,9 +131,8 @@ STATIC_URL = '/static/'
 
 
 # ipa-tuura configuration
-
 # We assume that an admin keytab is available
-os.environ["KRB5_CLIENT_KTNAME"] = '/root/scim.keytab'
+os.environ["KRB5_CLIENT_KTNAME"] = '/var/lib/ipa/ipatuura/service.keytab'
 
 AUTH_USER_MODEL = 'ipatuura.User'
 
@@ -155,9 +154,6 @@ SCIM_SERVICE_PROVIDER = {
             'documentationUri': '',
         },
     ],
-    # TODO administrative end-point must configure these values:
-    'WRITABLE_IFACE': 'ipa',
-    'WRITABLE_USER': 'admin',
 }
 
 # admin endpoint so that we can handle permissions and required fields only for authenticated users
@@ -166,3 +162,25 @@ SCIM_SERVICE_PROVIDER = {
 #}
 
 REST_FRAMEWORK = { 'DEFAULT_SCHEMA_CLASS': 'rest_framework.schemas.coreapi.AutoSchema' }
+
+# enable logging
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'DEBUG',
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': os.getenv('DJANGO_LOG_LEVEL', 'INFO'),
+            'propagate': False,
+        },
+    },
+}
