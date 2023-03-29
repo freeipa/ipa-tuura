@@ -2,28 +2,28 @@
 # Copyright (C) 2022  FreeIPA Contributors see COPYING for license
 #
 
+import datetime
 import logging
 import os
-import gssapi
 import uuid
-import six
+from decimal import Decimal
+
+import domains
+import gssapi
 import ldap
 import ldap.modlist as modlist
-import datetime
-import domains
-
-from ipalib.krb_utils import get_credentials_if_valid
+import six
+from cryptography import x509 as crypto_x509
+from cryptography.hazmat.primitives import serialization as x509
 from ipalib import api
 from ipalib.errors import EmptyModlist
 from ipalib.facts import is_ipa_client_configured
 from ipalib.install.kinit import kinit_keytab
+from ipalib.krb_utils import get_credentials_if_valid
 from ipapython import admintool
 from ipapython.dn import DN
 from ipapython.dnsutil import DNSName
 from ipapython.kerberos import Principal
-from decimal import Decimal
-from cryptography import x509 as crypto_x509
-from cryptography.hazmat.primitives import serialization as x509
 
 if six.PY3:
     unicode = str
@@ -39,6 +39,7 @@ class IPANotFoundException(Exception):
     """
     Exception returned when an IPA user or group is not found.
     """
+
     pass
 
 
@@ -46,6 +47,7 @@ class IPAAPI(admintool.AdminTool):
     """
     Initialization of the IPA API writable interface
     """
+
     def __init__(self):
         """
         Initialize IPA API.
@@ -66,65 +68,62 @@ class IPAAPI(admintool.AdminTool):
         """
         Initialize IPA API
         """
-        base_config = dict(
-            context=self._context, in_server=False, debug=False
-        )
+        base_config = dict(context=self._context, in_server=False, debug=False)
         try:
             self._valid_creds()
         except Exception as e:
-            logger.error(f'Failed to find default ccache {e}')
+            logger.error(f"Failed to find default ccache {e}")
 
         try:
             api.bootstrap(**base_config)
             if not api.isdone("finalize"):
                 api.finalize()
         except Exception as e:
-            logger.info(f'bootstrap already done {e}')
+            logger.info(f"bootstrap already done {e}")
 
         self._backend = api.Backend.rpcclient
         if not self._backend.isconnected():
-            self._backend.connect(ccache=os.environ.get('KRB5CCNAME', None))
+            self._backend.connect(ccache=os.environ.get("KRB5CCNAME", None))
 
     def _valid_creds(self):
         # try GSSAPI first
         if "KRB5CCNAME" in os.environ:
             ccache = os.environ["KRB5CCNAME"]
-            logger.info(f'ipa: init KRB5CCNAME set to {ccache}')
+            logger.info(f"ipa: init KRB5CCNAME set to {ccache}")
 
             try:
-                cred = gssapi.Credentials(usage='initiate',
-                                          store={'ccache': ccache})
+                cred = gssapi.Credentials(usage="initiate", store={"ccache": ccache})
             except gssapi.raw.misc.GSSError as e:
-                logger.error(f'Failed to find default ccache {e}')
+                logger.error(f"Failed to find default ccache {e}")
             else:
-                logger.info(f'Using principal {cred.name}')
+                logger.info(f"Using principal {cred.name}")
                 return True
 
         # KRB5_CLIENT_KTNAME os env is defined in settings.py
         elif "KRB5_CLIENT_KTNAME" in os.environ:
-            keytab = os.environ.get('KRB5_CLIENT_KTNAME', None)
-            logger.info(f'KRB5_CLIENT_KTNAME set to {keytab}')
+            keytab = os.environ.get("KRB5_CLIENT_KTNAME", None)
+            logger.info(f"KRB5_CLIENT_KTNAME set to {keytab}")
             ccache_name = "MEMORY:%s" % str(uuid.uuid4())
             os.environ["KRB5CCNAME"] = ccache_name
 
             try:
-                logger.info('kinit keytab')
+                logger.info("kinit keytab")
                 cred = kinit_keytab(
-                    domains.models.Domain.objects.last().client_id,
-                    keytab,
-                    ccache_name
-                    )
+                    domains.models.Domain.objects.last().client_id, keytab, ccache_name
+                )
             except gssapi.raw.misc.GSSError as e:
-                logger.error(f'Kerberos authentication failed {e}')
+                logger.error(f"Kerberos authentication failed {e}")
             else:
-                logger.info(f'Using principal {cred.name}')
+                logger.info(f"Using principal {cred.name}")
                 return True
 
         creds = get_credentials_if_valid()
-        if creds and \
-           creds.lifetime > 0 and \
-           "%s@" % domains.models.Domain.objects.last().client_id in \
-           creds.name.display_as(creds.name.name_type):
+        if (
+            creds
+            and creds.lifetime > 0
+            and "%s@" % domains.models.Domain.objects.last().client_id
+            in creds.name.display_as(creds.name.name_type)
+        ):
             return True
         return False
 
@@ -135,13 +134,13 @@ class IPAAPI(admintool.AdminTool):
         :param scim_user: user object conforming to the SCIM User Schema
         """
         self._ipa_connect()
-        result = api.Command['user_add'](
+        result = api.Command["user_add"](
             uid=scim_user.obj.username,
             givenname=scim_user.obj.first_name,
             sn=scim_user.obj.last_name,
-            mail=scim_user.obj.email
-            )
-        logger.info(f'ipa user_add result {result}')
+            mail=scim_user.obj.email,
+        )
+        logger.info(f"ipa user_add result {result}")
 
     def modify(self, scim_user):
         """
@@ -152,21 +151,20 @@ class IPAAPI(admintool.AdminTool):
         """
         self._ipa_connect()
         try:
-            result = api.Command['user_mod'](
+            result = api.Command["user_mod"](
                 scim_user.obj.username,
                 givenname=scim_user.obj.first_name,
                 sn=scim_user.obj.last_name,
-                mail=scim_user.obj.email
-                )
+                mail=scim_user.obj.email,
+            )
         except EmptyModlist:
-            logger.debug("No modification for user {}".format(
-                scim_user.obj.username))
+            logger.debug("No modification for user {}".format(scim_user.obj.username))
             return
         except Exception:
             raise IPANotFoundException(
                 "User {} not found".format(scim_user.obj.username)
-                )
-        logger.info(f'ipa: user_mod result {result}')
+            )
+        logger.info(f"ipa: user_mod result {result}")
 
     def delete(self, scim_user):
         """
@@ -177,20 +175,19 @@ class IPAAPI(admintool.AdminTool):
         """
         self._ipa_connect()
         try:
-            result = api.Command['user_del'](
-                uid=scim_user.obj.username
-                )
+            result = api.Command["user_del"](uid=scim_user.obj.username)
         except Exception:
             raise IPANotFoundException(
                 "User {} not found".format(scim_user.obj.username)
-                )
-        logger.info(f'ipa: user_del result {result}')
+            )
+        logger.info(f"ipa: user_del result {result}")
 
 
 class LDAP:
     """
     Initialization of the LDAP writable interface
     """
+
     def __init__(self):
         self._conn = None
         self._dn = None
@@ -201,7 +198,7 @@ class LDAP:
         self._user_object_classes = None
         # TLS
         self._ldap_tls_cacert = None
-        self._sasl_gssapi = ldap.sasl.sasl({}, 'GSSAPI')
+        self._sasl_gssapi = ldap.sasl.sasl({}, "GSSAPI")
         self._client_id = None
         self._client_secret = None
         # init and connect
@@ -213,7 +210,7 @@ class LDAP:
         Fetch relevant information from the integration domain
         """
         domain = domains.models.Domain.objects.last()
-        suffix = domain.name.split('.')
+        suffix = domain.name.split(".")
 
         self._dn = domain.client_id
         self._ldap_uri = domain.integration_domain_url
@@ -224,10 +221,10 @@ class LDAP:
         self._client_secret = domain.client_secret
         self._users_dn = domain.users_dn
         self._user_object_classes = [
-            x.strip() for x in domain.user_object_classes.split(',')
-            ]
+            x.strip() for x in domain.user_object_classes.split(",")
+        ]
 
-        logger.info(f'Domain info: {domain}')
+        logger.info(f"Domain info: {domain}")
 
     def _bind(self):
         """
@@ -244,7 +241,7 @@ class LDAP:
         try:
             self._conn.simple_bind_s(self._dn, self._client_secret)
         except Exception as e:
-            logger.error(f'Unable to bind to LDAP server {e}')
+            logger.error(f"Unable to bind to LDAP server {e}")
         else:
             return self._conn
 
@@ -257,13 +254,13 @@ class LDAP:
         # entered for a boolean value instead of the boolean clause.
         if isinstance(val, bool):
             if val:
-                return b'TRUE'
+                return b"TRUE"
             else:
-                return b'FALSE'
+                return b"FALSE"
         elif isinstance(val, (unicode, int, Decimal, DN, Principal)):
-            return str(val).encode('utf-8')
+            return str(val).encode("utf-8")
         elif isinstance(val, DNSName):
-            return val.to_text().encode('ascii')
+            return val.to_text().encode("ascii")
         elif isinstance(val, bytes):
             return val
         elif isinstance(val, list):
@@ -275,14 +272,16 @@ class LDAP:
             dct = dict((k, self.encode(v)) for k, v in val.items())
             return dct
         elif isinstance(val, datetime.datetime):
-            return val.strftime(LDAP_GENERALIZED_TIME_FORMAT).encode('utf-8')
+            return val.strftime(LDAP_GENERALIZED_TIME_FORMAT).encode("utf-8")
         elif isinstance(val, crypto_x509.Certificate):
             return val.public_bytes(x509.Encoding.DER)
         elif val is None:
             return None
         else:
-            raise TypeError("attempt to pass unsupported type to ldap, "
-                            "value=%s type=%s" % (val, type(val)))
+            raise TypeError(
+                "attempt to pass unsupported type to ldap, "
+                "value=%s type=%s" % (val, type(val))
+            )
 
     def add(self, scim_user):
         """
@@ -297,24 +296,28 @@ class LDAP:
         """
         # TODO: implement dynamic list based on _ldap_user_extra_attrs
         attrs = {}
-        attrs['cn'] = self.encode(scim_user.obj.username)
-        attrs['sn'] = self.encode(scim_user.obj.last_name)
-        attrs['givenname'] = self.encode(scim_user.obj.first_name)
-        attrs['mail'] = self.encode(scim_user.obj.email)
-        attrs['objectClass'] = self.encode(self._user_object_classes)
+        attrs["cn"] = self.encode(scim_user.obj.username)
+        attrs["sn"] = self.encode(scim_user.obj.last_name)
+        attrs["givenname"] = self.encode(scim_user.obj.first_name)
+        attrs["mail"] = self.encode(scim_user.obj.email)
+        attrs["objectClass"] = self.encode(self._user_object_classes)
         ldif = modlist.addModlist(attrs)
 
         self._bind()
         try:
             # AD: cn, LDAP: uid
-            self._conn.add_s("uid={uid},{usersdn},{basedn}".format(
-                uid=scim_user.obj.username,
-                usersdn=self._users_dn,
-                basedn=self._ldap_search_base), ldif)
+            self._conn.add_s(
+                "uid={uid},{usersdn},{basedn}".format(
+                    uid=scim_user.obj.username,
+                    usersdn=self._users_dn,
+                    basedn=self._ldap_search_base,
+                ),
+                ldif,
+            )
         except ldap.LDAPError as e:
-            desc = e.args[0]['desc'].strip()
-            info = e.args[0].get('info', '').strip()
-            logger.error(f'LDAP Error: {desc}: {info}')
+            desc = e.args[0]["desc"].strip()
+            info = e.args[0].get("info", "").strip()
+            logger.error(f"LDAP Error: {desc}: {info}")
 
     def modify(self, scim_user):
         """
@@ -323,23 +326,27 @@ class LDAP:
         :param scim_user: user object conforming to the SCIM User Schema
         """
         attrs = {}
-        attrs['cn'] = self.encode(scim_user.obj.username)
-        attrs['sn'] = self.encode(scim_user.obj.last_name)
-        attrs['givenname'] = self.encode(scim_user.obj.first_name)
-        attrs['mail'] = self.encode(scim_user.obj.email)
-        attrs['objectClass'] = self.encode(self._user_object_classes)
+        attrs["cn"] = self.encode(scim_user.obj.username)
+        attrs["sn"] = self.encode(scim_user.obj.last_name)
+        attrs["givenname"] = self.encode(scim_user.obj.first_name)
+        attrs["mail"] = self.encode(scim_user.obj.email)
+        attrs["objectClass"] = self.encode(self._user_object_classes)
         ldif = modlist.addModlist(attrs)
 
         self._bind()
         try:
-            self._conn.modify_s("uid={uid},{usersdn},{basedn}".format(
-                uid=scim_user.obj.username,
-                usersdn=self._users_dn,
-                basedn=self._ldap_search_base), ldif)
+            self._conn.modify_s(
+                "uid={uid},{usersdn},{basedn}".format(
+                    uid=scim_user.obj.username,
+                    usersdn=self._users_dn,
+                    basedn=self._ldap_search_base,
+                ),
+                ldif,
+            )
         except ldap.LDAPError as e:
-            desc = e.args[0]['desc'].strip()
-            info = e.args[0].get('info', '').strip()
-            logger.error(f'LDAP Error: {desc}: {info}')
+            desc = e.args[0]["desc"].strip()
+            info = e.args[0].get("info", "").strip()
+            logger.error(f"LDAP Error: {desc}: {info}")
 
     def delete(self, scim_user):
         """
@@ -349,20 +356,24 @@ class LDAP:
         """
         self._bind()
         try:
-            self._conn.delete_s("uid={uid},{usersdn},{basedn}".format(
-                uid=scim_user.obj.username,
-                usersdn=self._users_dn,
-                basedn=self._ldap_search_base))
+            self._conn.delete_s(
+                "uid={uid},{usersdn},{basedn}".format(
+                    uid=scim_user.obj.username,
+                    usersdn=self._users_dn,
+                    basedn=self._ldap_search_base,
+                )
+            )
         except ldap.LDAPError as e:
-            desc = e.args[0]['desc'].strip()
-            info = e.args[0].get('info', '').strip()
-            logger.error(f'LDAP Error: {desc}: {info}')
+            desc = e.args[0]["desc"].strip()
+            info = e.args[0].get("info", "").strip()
+            logger.error(f"LDAP Error: {desc}: {info}")
 
 
 class AD:
     """
     Initialization of the LDAP AD writable interface
     """
+
     def __init__(self):
         self._conn = None
         self._dn = None
@@ -373,7 +384,7 @@ class AD:
         self._user_object_classes = None
         # TLS
         self._ldap_tls_cacert = None
-        self._sasl_gssapi = ldap.sasl.sasl({}, 'GSSAPI')
+        self._sasl_gssapi = ldap.sasl.sasl({}, "GSSAPI")
         self._client_id = None
         self._client_secret = None
         # init and connect
@@ -385,7 +396,7 @@ class AD:
         Fetch relevant information from the integration domain
         """
         domain = domains.models.Domain.objects.last()
-        suffix = domain.name.split('.')
+        suffix = domain.name.split(".")
 
         self._dn = domain.client_id + "@" + domain.name
         self._ldap_uri = domain.integration_domain_url
@@ -396,9 +407,9 @@ class AD:
         self._client_secret = domain.client_secret
         self._users_dn = domain.users_dn
         self._user_object_classes = [
-            x.strip() for x in domain.user_object_classes.split(',')
-            ]
-        logger.info(f'Domain info: {domain}')
+            x.strip() for x in domain.user_object_classes.split(",")
+        ]
+        logger.info(f"Domain info: {domain}")
 
     def _bind(self):
         """
@@ -415,7 +426,7 @@ class AD:
         try:
             self._conn.simple_bind_s(self._dn, self._client_secret)
         except Exception as e:
-            logger.error(f'Unable to bind to LDAP server {e}')
+            logger.error(f"Unable to bind to LDAP server {e}")
         else:
             return self._conn
 
@@ -428,13 +439,13 @@ class AD:
         # entered for a boolean value instead of the boolean clause.
         if isinstance(val, bool):
             if val:
-                return b'TRUE'
+                return b"TRUE"
             else:
-                return b'FALSE'
+                return b"FALSE"
         elif isinstance(val, (unicode, int, Decimal, DN, Principal)):
-            return str(val).encode('utf-8')
+            return str(val).encode("utf-8")
         elif isinstance(val, DNSName):
-            return val.to_text().encode('ascii')
+            return val.to_text().encode("ascii")
         elif isinstance(val, bytes):
             return val
         elif isinstance(val, list):
@@ -446,14 +457,16 @@ class AD:
             dct = dict((k, self.encode(v)) for k, v in val.items())
             return dct
         elif isinstance(val, datetime.datetime):
-            return val.strftime(LDAP_GENERALIZED_TIME_FORMAT).encode('utf-8')
+            return val.strftime(LDAP_GENERALIZED_TIME_FORMAT).encode("utf-8")
         elif isinstance(val, crypto_x509.Certificate):
             return val.public_bytes(x509.Encoding.DER)
         elif val is None:
             return None
         else:
-            raise TypeError("attempt to pass unsupported type to ldap, "
-                            "value=%s type=%s" % (val, type(val)))
+            raise TypeError(
+                "attempt to pass unsupported type to ldap, "
+                "value=%s type=%s" % (val, type(val))
+            )
 
     def add(self, scim_user):
         """
@@ -468,24 +481,28 @@ class AD:
         """
         # TODO: implement dynamic list based on _ldap_user_extra_attrs
         attrs = {}
-        attrs['objectclass'] = self.encode(self._user_object_classes)
-        attrs['cn'] = self.encode(scim_user.obj.username)
-        attrs['mail'] = self.encode(scim_user.obj.email)
-        attrs['givenname'] = self.encode(scim_user.obj.first_name)
-        attrs['sn'] = self.encode(scim_user.obj.last_name)
+        attrs["objectclass"] = self.encode(self._user_object_classes)
+        attrs["cn"] = self.encode(scim_user.obj.username)
+        attrs["mail"] = self.encode(scim_user.obj.email)
+        attrs["givenname"] = self.encode(scim_user.obj.first_name)
+        attrs["sn"] = self.encode(scim_user.obj.last_name)
         ldif = modlist.addModlist(attrs)
 
         self._bind()
         try:
             # AD: cn, LDAP: uid
-            self._conn.add_s("cn={uid},{usersdn},{basedn}".format(
-                uid=scim_user.obj.username,
-                usersdn=self._users_dn,
-                basedn=self._ldap_search_base), ldif)
+            self._conn.add_s(
+                "cn={uid},{usersdn},{basedn}".format(
+                    uid=scim_user.obj.username,
+                    usersdn=self._users_dn,
+                    basedn=self._ldap_search_base,
+                ),
+                ldif,
+            )
         except ldap.LDAPError as e:
-            desc = e.args[0]['desc'].strip()
-            info = e.args[0].get('info', '').strip()
-            logger.error(f'LDAP Error: {desc}: {info}')
+            desc = e.args[0]["desc"].strip()
+            info = e.args[0].get("info", "").strip()
+            logger.error(f"LDAP Error: {desc}: {info}")
 
     def modify(self, scim_user):
         """
@@ -494,23 +511,27 @@ class AD:
         :param scim_user: user object conforming to the SCIM User Schema
         """
         attrs = {}
-        attrs['objectclass'] = self.encode(self._user_object_classes)
-        attrs['cn'] = self.encode(scim_user.obj.username)
-        attrs['mail'] = self.encode(scim_user.obj.email)
-        attrs['givenname'] = self.encode(scim_user.obj.first_name)
-        attrs['sn'] = self.encode(scim_user.obj.last_name)
+        attrs["objectclass"] = self.encode(self._user_object_classes)
+        attrs["cn"] = self.encode(scim_user.obj.username)
+        attrs["mail"] = self.encode(scim_user.obj.email)
+        attrs["givenname"] = self.encode(scim_user.obj.first_name)
+        attrs["sn"] = self.encode(scim_user.obj.last_name)
         ldif = modlist.addModlist(attrs)
 
         self._bind()
         try:
-            self._conn.modify_s("cn={uid},{usersdn},{basedn}".format(
-                uid=scim_user.obj.username,
-                usersdn=self._users_dn,
-                basedn=self._ldap_search_base), ldif)
+            self._conn.modify_s(
+                "cn={uid},{usersdn},{basedn}".format(
+                    uid=scim_user.obj.username,
+                    usersdn=self._users_dn,
+                    basedn=self._ldap_search_base,
+                ),
+                ldif,
+            )
         except ldap.LDAPError as e:
-            desc = e.args[0]['desc'].strip()
-            info = e.args[0].get('info', '').strip()
-            logger.error(f'LDAP Error: {desc}: {info}')
+            desc = e.args[0]["desc"].strip()
+            info = e.args[0].get("info", "").strip()
+            logger.error(f"LDAP Error: {desc}: {info}")
 
     def delete(self, scim_user):
         """
@@ -520,26 +541,27 @@ class AD:
         """
         self._bind()
         try:
-            self._conn.delete_s("cn={uid},{usersdn},{basedn}".format(
-                uid=scim_user.obj.username,
-                usersdn=self._users_dn,
-                basedn=self._ldap_search_base))
+            self._conn.delete_s(
+                "cn={uid},{usersdn},{basedn}".format(
+                    uid=scim_user.obj.username,
+                    usersdn=self._users_dn,
+                    basedn=self._ldap_search_base,
+                )
+            )
         except ldap.LDAPError as e:
-            desc = e.args[0]['desc'].strip()
-            info = e.args[0].get('info', '').strip()
-            logger.error(f'LDAP Error: {desc}: {info}')
+            desc = e.args[0]["desc"].strip()
+            info = e.args[0].get("info", "").strip()
+            logger.error(f"LDAP Error: {desc}: {info}")
 
 
-class _IPA():
+class _IPA:
     _instance = None
 
     def __init__(self):
         """
         Initialize writable interface
         """
-        self._apiconn = self._write(
-            domains.models.Domain.objects.last().id_provider
-        )
+        self._apiconn = self._write(domains.models.Domain.objects.last().id_provider)
 
     def _write(self, iface="ipa"):
         """

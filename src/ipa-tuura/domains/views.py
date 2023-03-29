@@ -4,33 +4,30 @@
 
 import logging
 
+from django.http import Http404
+from domains.adapters import DomainSerializer
+from domains.models import Domain
+from domains.utils import add_domain, delete_domain
+from rest_framework import status
 from rest_framework.mixins import (
     CreateModelMixin,
+    DestroyModelMixin,
     ListModelMixin,
     RetrieveModelMixin,
-    DestroyModelMixin
 )
-from rest_framework.viewsets import GenericViewSet
 from rest_framework.response import Response
-from rest_framework import status
-
-from domains.models import Domain
-from domains.adapters import DomainSerializer
-from domains.utils import (
-    add_domain,
-    delete_domain,
-)
-from django.http import Http404
-
+from rest_framework.viewsets import GenericViewSet
 
 logger = logging.getLogger(__name__)
 
 
-class DomainViewSet(GenericViewSet,
-                    CreateModelMixin,
-                    ListModelMixin,
-                    RetrieveModelMixin,
-                    DestroyModelMixin):
+class DomainViewSet(
+    GenericViewSet,
+    CreateModelMixin,
+    ListModelMixin,
+    RetrieveModelMixin,
+    DestroyModelMixin,
+):
     serializer_class = DomainSerializer
     queryset = Domain.objects.all()
 
@@ -52,7 +49,7 @@ class DomainViewSet(GenericViewSet,
         instance = self.get_object()
         serializer = self.get_serializer(instance)
 
-        logger.info(f'domain retrieve {serializer.data}')
+        logger.info(f"domain retrieve {serializer.data}")
 
         return Response(serializer.data)
 
@@ -74,7 +71,7 @@ class DomainViewSet(GenericViewSet,
         try:
             instance = self.get_object()
             serializer = self.get_serializer(instance)
-            logger.info(f'domain destroy {serializer.data}')
+            logger.info(f"domain destroy {serializer.data}")
             delete_domain(serializer.data)
             self.perform_destroy(instance)
         except Http404:

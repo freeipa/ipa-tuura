@@ -4,20 +4,19 @@
 
 from urllib.parse import urljoin
 
-from django.contrib.auth.models import AbstractBaseUser
-from django.contrib.auth.models import UserManager
-from django.contrib.auth.models import GroupManager
+from django.contrib.auth.models import AbstractBaseUser, GroupManager, UserManager
 from django.db import models
 from django.db.utils import NotSupportedError
-from django.utils.translation import gettext_lazy as _
 from django.urls import reverse
-
-from django_scim.models import SCIMServiceProviderConfig
-from django_scim.models import AbstractSCIMGroupMixin, AbstractSCIMUserMixin
+from django.utils.translation import gettext_lazy as _
 from django_scim import constants
+from django_scim.models import (
+    AbstractSCIMGroupMixin,
+    AbstractSCIMUserMixin,
+    SCIMServiceProviderConfig,
+)
 from django_scim.settings import scim_settings
 from django_scim.utils import get_base_scim_location_getter
-
 from ipatuura.sssd import SSSD, SSSDNotFoundException
 
 
@@ -85,10 +84,11 @@ def SSSDGroupToGroupModel(sssd_if, sssdgroup):
     return groupmodel
 
 
-class CustomUserGroupRelationManager():
+class CustomUserGroupRelationManager:
     """
     Manager allowing to access Groups linked to a User object.
     """
+
     groups = []
 
     def all(self):
@@ -102,6 +102,7 @@ class CustomUserManager(UserManager):
     """
     Manager specific to the User objects.
     """
+
     def create_user(self, scim_username, email, password=None):
         """
         Create and save a User with the scim_username, email and password.
@@ -112,11 +113,12 @@ class CustomUserManager(UserManager):
         :returns: a User object
         """
         if not scim_username:
-            raise ValueError(_('The scim_username must be set'))
+            raise ValueError(_("The scim_username must be set"))
         if not email:
-            raise ValueError('Users must have an email address')
-        user = self.model(scim_username=scim_username,
-                          email=self.normalize_email(email))
+            raise ValueError("Users must have an email address")
+        user = self.model(
+            scim_username=scim_username, email=self.normalize_email(email)
+        )
         user.set_password(password)
         user.save()
         return user
@@ -159,36 +161,40 @@ class CustomUserManager(UserManager):
             pass
 
         # Support only search by scim_id
-        if 'scim_id' in kwargs.keys():
+        if "scim_id" in kwargs.keys():
             try:
                 sssd_if = SSSD()
                 sssduser = sssd_if.find_user_by_id(
-                    kwargs['scim_id'], retrieve_groups=True)
+                    kwargs["scim_id"], retrieve_groups=True
+                )
             except SSSDNotFoundException:
                 raise User.DoesNotExist
             return SSSDUserToUserModel(sssd_if, sssduser)
-        elif 'scim_username' in kwargs.keys():
+        elif "scim_username" in kwargs.keys():
             try:
                 sssd_if = SSSD()
                 sssduser = sssd_if.find_user_by_name(
-                    kwargs['scim_username'], retrieve_groups=True)
+                    kwargs["scim_username"], retrieve_groups=True
+                )
             except SSSDNotFoundException:
                 raise User.DoesNotExist
             return SSSDUserToUserModel(sssd_if, sssduser)
         else:
             raise NotSupportedError(
-                'Support only exact search by scim_id or scim_username')
+                "Support only exact search by scim_id or scim_username"
+            )
 
 
 class User(AbstractSCIMUserMixin, AbstractBaseUser):
     """
     User model
     """
+
     # Why override this? Can't we just use what the AbstractSCIMUser mixin
     # gives us? The USERNAME_FIELD needs to be "unique" and for flexibility,
     # AbstractSCIMUser.scim_username is not unique by default.
     scim_username = models.CharField(
-        _('SCIM Username'),
+        _("SCIM Username"),
         max_length=254,
         null=True,
         blank=True,
@@ -198,39 +204,37 @@ class User(AbstractSCIMUserMixin, AbstractBaseUser):
     )
 
     first_name = models.CharField(
-        _('First Name'),
+        _("First Name"),
         max_length=100,
     )
 
     last_name = models.CharField(
-        _('Last Name'),
+        _("Last Name"),
         max_length=100,
     )
 
     email = models.EmailField(
-        _('Email'),
+        _("Email"),
     )
 
     is_staff = models.BooleanField(
-        _('staff status'),
+        _("staff status"),
         default=False,
-        help_text=_('Whether the user can log into this admin site'),
+        help_text=_("Whether the user can log into this admin site"),
     )
 
-    EMAIL_FIELD = 'email'
-    USERNAME_FIELD = 'scim_username'
-    REQUIRED_FIELDS = ['email']
+    EMAIL_FIELD = "email"
+    USERNAME_FIELD = "scim_username"
+    REQUIRED_FIELDS = ["email"]
 
     # Override the object manager
     objects = CustomUserManager()
 
     def get_full_name(self):
-        return self.first_name + ' ' + self.last_name
+        return self.first_name + " " + self.last_name
 
     def get_short_name(self):
-        return self.first_name + (
-            ' ' + self.last_name[0] if self.last_name else ''
-        )
+        return self.first_name + (" " + self.last_name[0] if self.last_name else "")
 
     @property
     def username(self):
@@ -241,17 +245,18 @@ class User(AbstractSCIMUserMixin, AbstractBaseUser):
         """
         Return a custom Relation Manager used to handle group membership.
         """
-        if getattr(self, '_scim_groups', None):
+        if getattr(self, "_scim_groups", None):
             return self._scim_groups
         else:
             self._scim_groups = CustomUserGroupRelationManager()
             return self._scim_groups
 
 
-class CustomGroupUserRelationManager():
+class CustomGroupUserRelationManager:
     """
     Manager allowing to access Users linked to a Group object.
     """
+
     users = []
 
     def all(self):
@@ -265,6 +270,7 @@ class CustomGroupManager(GroupManager):
     """
     Manager specific to the Group objects.
     """
+
     def get(self, *args, **kwargs):
         """
         Returns the Group object matching the given lookup parameters.
@@ -289,32 +295,36 @@ class CustomGroupManager(GroupManager):
             pass
 
         # Support only search by scim_id or scim_display_name
-        if 'scim_id' in kwargs.keys():
+        if "scim_id" in kwargs.keys():
             try:
                 sssd_if = SSSD()
                 sssdgroup = sssd_if.find_group_by_id(
-                    kwargs['scim_id'], retrieve_members=True)
+                    kwargs["scim_id"], retrieve_members=True
+                )
             except SSSDNotFoundException:
                 raise Group.DoesNotExist
 
             return SSSDGroupToGroupModel(sssd_if, sssdgroup)
-        elif 'scim_display_name' in kwargs.keys():
+        elif "scim_display_name" in kwargs.keys():
             try:
                 sssd_if = SSSD()
                 sssdgroup = sssd_if.find_group_by_name(
-                    kwargs['scim_display_name'], retrieve_members=True)
+                    kwargs["scim_display_name"], retrieve_members=True
+                )
             except SSSDNotFoundException:
                 raise Group.DoesNotExist
             return SSSDGroupToGroupModel(sssd_if, sssdgroup)
         else:
             raise NotSupportedError(
-                'Support only exact search by scim_id or scim_display_name')
+                "Support only exact search by scim_id or scim_display_name"
+            )
 
 
 class Group(AbstractSCIMGroupMixin):
     """
     Group model
     """
+
     # Override the object manager
     objects = CustomGroupManager()
 
@@ -323,7 +333,7 @@ class Group(AbstractSCIMGroupMixin):
         """
         Return a custom Relation Manager used to handle the list of users.
         """
-        if getattr(self, '_user_set', None):
+        if getattr(self, "_user_set", None):
             return self._user_set
         else:
             self._user_set = CustomGroupUserRelationManager()
@@ -337,52 +347,53 @@ class ServiceProviderConfig(SCIMServiceProviderConfig):
     authentication_schemes and features that are implemented
     by ipa-tuura.
     """
+
     def __init__(self, request=None):
         self.request = request
 
     @property
     def meta(self):
         return {
-            'location': self.location,
-            'resourceType': 'ServiceProviderConfig',
+            "location": self.location,
+            "resourceType": "ServiceProviderConfig",
         }
 
     @property
     def location(self):
-        path = reverse('scim:service-provider-config')
+        path = reverse("scim:service-provider-config")
         return urljoin(get_base_scim_location_getter()(self.request), path)
 
     def to_dict(self):
         return {
-            'schemas': [constants.SchemaURI.SERVICE_PROVIDER_CONFIG],
-            'documentationUri': scim_settings.DOCUMENTATION_URI,
+            "schemas": [constants.SchemaURI.SERVICE_PROVIDER_CONFIG],
+            "documentationUri": scim_settings.DOCUMENTATION_URI,
             # In order to support the PATCH method both:
             # - ScimUser.handle_add
             # - ScimUser.handle_replace
             # must be implemented.
-            'patch': {
-                'supported': False,
+            "patch": {
+                "supported": False,
             },
-            'bulk': {
-                'supported': False,
-                'maxOperations': 1000,
-                'maxPayloadSize': 1048576,
+            "bulk": {
+                "supported": False,
+                "maxOperations": 1000,
+                "maxPayloadSize": 1048576,
             },
             # Django-SCIM2 does not fully support the all the
             # SCIM2.0 filtering options (Section 3.4.2.2 of [RFC7644])
-            'filter': {
-                'supported': False,
-                'maxResults': 50,
+            "filter": {
+                "supported": False,
+                "maxResults": 50,
             },
-            'changePassword': {
-                'supported': True,
+            "changePassword": {
+                "supported": True,
             },
-            'sort': {
-                'supported': False,
+            "sort": {
+                "supported": False,
             },
-            'etag': {
-                'supported': False,
+            "etag": {
+                "supported": False,
             },
-            'authenticationSchemes': scim_settings.AUTHENTICATION_SCHEMES,
-            'meta': self.meta,
+            "authenticationSchemes": scim_settings.AUTHENTICATION_SCHEMES,
+            "meta": self.meta,
         }

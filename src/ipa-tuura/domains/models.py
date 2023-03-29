@@ -7,7 +7,6 @@ import logging
 from django.db import models
 from django.utils.translation import gettext as _
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -23,9 +22,10 @@ class Domain(models.Model):
         """
         Field Choices for the supported integration domain provider types
         """
-        IPA = 'ipa', _("IPA Provider")
-        AD = 'ad', _("LDAP Active Directory Provider")
-        LDAP = 'ldap', _("LDAP Provider")
+
+        IPA = "ipa", _("IPA Provider")
+        AD = "ad", _("LDAP Active Directory Provider")
+        LDAP = "ldap", _("LDAP Provider")
 
     # TODO: multi-domain, implement is_active boolean flag
     # it designates whether the integration domain should be considered active
@@ -77,21 +77,19 @@ class Domain(models.Model):
         if not self.user_extra_attrs:
             self.user_extra_attrs = "mail:mail, sn:sn, givenname:givenname"
 
-        if self.id_provider == 'ldap':
+        if self.id_provider == "ldap":
             if not self.user_object_classes:
-                self.user_object_classes = 'inetOrgPerson,'\
-                                           'organizationalPerson,'\
-                                           'person,'\
-                                           'top'
+                self.user_object_classes = (
+                    "inetOrgPerson," "organizationalPerson," "person," "top"
+                )
             if not self.users_dn:
                 self.users_dn = "ou=people"
 
-        elif self.id_provider == 'ad':
+        elif self.id_provider == "ad":
             if not self.user_object_classes:
-                self.user_object_classes = 'user,'\
-                                           'organizationalPerson,'\
-                                           'person,'\
-                                           'top'
+                self.user_object_classes = (
+                    "user," "organizationalPerson," "person," "top"
+                )
             if not self.users_dn:
                 self.users_dn = "CN=Users"
 

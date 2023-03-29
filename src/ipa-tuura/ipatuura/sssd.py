@@ -4,22 +4,23 @@
 
 import dbus
 
-DBUS_SSSD_NAME = 'org.freedesktop.sssd.infopipe'
-DBUS_SSSD_PATH = '/org/freedesktop/sssd/infopipe'
-DBUS_SSSD_IF = 'org.freedesktop.sssd.infopipe'
-DBUS_PROPERTY_IF = 'org.freedesktop.DBus.Properties'
-DBUS_SSSD_USERS_PATH = '/org/freedesktop/sssd/infopipe/Users'
-DBUS_SSSD_USERS_IF = 'org.freedesktop.sssd.infopipe.Users'
-DBUS_SSSD_USER_IF = 'org.freedesktop.sssd.infopipe.Users.User'
-DBUS_SSSD_GROUPS_PATH = '/org/freedesktop/sssd/infopipe/Groups'
-DBUS_SSSD_GROUPS_IF = 'org.freedesktop.sssd.infopipe.Groups'
-DBUS_SSSD_GROUP_IF = 'org.freedesktop.sssd.infopipe.Groups.Group'
+DBUS_SSSD_NAME = "org.freedesktop.sssd.infopipe"
+DBUS_SSSD_PATH = "/org/freedesktop/sssd/infopipe"
+DBUS_SSSD_IF = "org.freedesktop.sssd.infopipe"
+DBUS_PROPERTY_IF = "org.freedesktop.DBus.Properties"
+DBUS_SSSD_USERS_PATH = "/org/freedesktop/sssd/infopipe/Users"
+DBUS_SSSD_USERS_IF = "org.freedesktop.sssd.infopipe.Users"
+DBUS_SSSD_USER_IF = "org.freedesktop.sssd.infopipe.Users.User"
+DBUS_SSSD_GROUPS_PATH = "/org/freedesktop/sssd/infopipe/Groups"
+DBUS_SSSD_GROUPS_IF = "org.freedesktop.sssd.infopipe.Groups"
+DBUS_SSSD_GROUP_IF = "org.freedesktop.sssd.infopipe.Groups.Group"
 
 
 class SSSDNotFoundException(Exception):
     """
     Exception returned when an SSSD user or group is not found.
     """
+
     pass
 
 
@@ -29,6 +30,7 @@ class SSSDGroup:
 
     SSSD groups are defined by an id (gidNumber in LDAP) and a name.
     """
+
     def __init__(self, id, name):
         self.id = id
         self.name = name
@@ -49,14 +51,15 @@ class SSSDUser:
 
     SSSD users are defined by an id (uidNumber in LDAP) and a username.
     """
+
     def __init__(self, id, username, **kwargs):
         self.id = id
         self.username = username
-        self.first_name = kwargs.get('givenname')
-        self.last_name = kwargs.get('sn')
-        self.mail = kwargs.get('mail')
-        self.groups = kwargs.get('groups') or []
-        self.active = kwargs.get('active')
+        self.first_name = kwargs.get("givenname")
+        self.last_name = kwargs.get("sn")
+        self.mail = kwargs.get("mail")
+        self.groups = kwargs.get("groups") or []
+        self.active = kwargs.get("active")
 
     def __repr__(self):
         groups = ", ".join(self.groups)
@@ -73,18 +76,14 @@ class _SSSD:
         """
         try:
             self._bus = dbus.SystemBus()
-            self._sssd_obj = self._bus.get_object(
-                DBUS_SSSD_NAME, DBUS_SSSD_PATH)
-            self._sssd_iface = dbus.Interface(
-                self._sssd_obj, DBUS_SSSD_IF)
-            self._users_obj = self._bus.get_object(
-                DBUS_SSSD_NAME, DBUS_SSSD_USERS_PATH)
-            self._users_iface = dbus.Interface(
-                self._users_obj, DBUS_SSSD_USERS_IF)
+            self._sssd_obj = self._bus.get_object(DBUS_SSSD_NAME, DBUS_SSSD_PATH)
+            self._sssd_iface = dbus.Interface(self._sssd_obj, DBUS_SSSD_IF)
+            self._users_obj = self._bus.get_object(DBUS_SSSD_NAME, DBUS_SSSD_USERS_PATH)
+            self._users_iface = dbus.Interface(self._users_obj, DBUS_SSSD_USERS_IF)
             self._groups_obj = self._bus.get_object(
-                DBUS_SSSD_NAME, DBUS_SSSD_GROUPS_PATH)
-            self._groups_iface = dbus.Interface(
-                self._groups_obj, DBUS_SSSD_GROUPS_IF)
+                DBUS_SSSD_NAME, DBUS_SSSD_GROUPS_PATH
+            )
+            self._groups_iface = dbus.Interface(self._groups_obj, DBUS_SSSD_GROUPS_IF)
         except dbus.DBusException:
             # TBD: add some logging
             raise SSSDNotFoundException
@@ -172,28 +171,28 @@ class _SSSD:
         extra_attrs = user_iface.Get(DBUS_SSSD_USER_IF, "extraAttributes")
 
         # Retrieve firstname
-        givenname = extra_attrs.get('givenname')
+        givenname = extra_attrs.get("givenname")
         if givenname:
-            kwargs['givenname'] = str(givenname[0])
+            kwargs["givenname"] = str(givenname[0])
         # Retrieve lastname
-        sn = extra_attrs.get('sn')
+        sn = extra_attrs.get("sn")
         if sn:
-            kwargs['sn'] = str(sn[0])
+            kwargs["sn"] = str(sn[0])
         # Retrieve email
-        mail = extra_attrs.get('mail')
+        mail = extra_attrs.get("mail")
         if mail:
-            kwargs['mail'] = [str(x) for x in mail]
+            kwargs["mail"] = [str(x) for x in mail]
         # Retrieve active state
-        locked = extra_attrs.get('lock')
-        if locked and str(locked[0]).lower() == 'true':
-            kwargs['active'] = False
+        locked = extra_attrs.get("lock")
+        if locked and str(locked[0]).lower() == "true":
+            kwargs["active"] = False
         else:
-            kwargs['active'] = True
+            kwargs["active"] = True
 
-        if (retrieve_groups):
+        if retrieve_groups:
             groups = self._sssd_iface.GetUserGroups(name)
             if groups:
-                kwargs['groups'] = {str(x) for x in groups}
+                kwargs["groups"] = {str(x) for x in groups}
 
         sssduser = SSSDUser(id, name, **kwargs)
         return sssduser

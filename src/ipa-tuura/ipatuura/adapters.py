@@ -10,7 +10,6 @@ from django_scim import exceptions
 from django_scim.adapters import SCIMGroup, SCIMUser
 from ipatuura.ipa import IPA
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -21,8 +20,8 @@ class SCIMUser(SCIMUser):
         Return the meta object of the user per the SCIM spec.
         """
         d = {
-            'resourceType': self.resource_type,
-            'location': self.location,
+            "resourceType": self.resource_type,
+            "location": self.location,
         }
         return d
 
@@ -32,9 +31,11 @@ class SCIMUser(SCIMUser):
         ready for conversion to a JSON object.
         """
         d = super().to_dict()
-        d.update({
-            'userName': self.obj.scim_username,
-        })
+        d.update(
+            {
+                "userName": self.obj.scim_username,
+            }
+        )
 
         return d
 
@@ -48,16 +49,16 @@ class SCIMUser(SCIMUser):
             scim_user.from_dict(d)
             scim_user.save()
         """
-        self.parse_active(d.get('active'))
+        self.parse_active(d.get("active"))
 
-        self.obj.first_name = d.get('name', {}).get('givenName') or ''
-        self.obj.last_name = d.get('name', {}).get('familyName') or ''
-        self.parse_email(d.get('emails'))
+        self.obj.first_name = d.get("name", {}).get("givenName") or ""
+        self.obj.last_name = d.get("name", {}).get("familyName") or ""
+        self.parse_email(d.get("emails"))
         if self.is_new_user and not self.obj.email:
-            raise exceptions.BadRequestError('Empty email value')
-        self.obj.scim_username = d.get('userName')
-        self.obj.scim_external_id = d.get('externalId') or ''
-        cleartext_password = d.get('password')
+            raise exceptions.BadRequestError("Empty email value")
+        self.obj.scim_username = d.get("userName")
+        self.obj.scim_external_id = d.get("externalId") or ""
+        cleartext_password = d.get("password")
         if cleartext_password:
             self.obj.set_password(cleartext_password)
             self.obj._scim_cleartext_password = cleartext_password
@@ -73,13 +74,12 @@ class SCIMUser(SCIMUser):
         if emails_value:
             email = None
             if isinstance(emails_value, list):
-                primary_emails = [e['value'] for e in emails_value
-                                  if e.get('primary')]
-                other_emails = [e['value'] for e in emails_value
-                                if not e.get('primary')]
+                primary_emails = [e["value"] for e in emails_value if e.get("primary")]
+                other_emails = [
+                    e["value"] for e in emails_value if not e.get("primary")
+                ]
                 # Make primary emails the first in the list
-                sorted_emails = list(
-                    map(str.strip, primary_emails + other_emails))
+                sorted_emails = list(map(str.strip, primary_emails + other_emails))
                 email = sorted_emails[0] if sorted_emails else None
             elif isinstance(emails_value, dict):
                 # if value is a dict, let's assume it contains the primary
@@ -87,7 +87,7 @@ class SCIMUser(SCIMUser):
                 # OneLogin sends a dict despite the spec:
                 #   https://tools.ietf.org/html/rfc7643#section-4.1.2
                 #   https://tools.ietf.org/html/rfc7643#section-8.2
-                email = (emails_value.get('value') or '').strip()
+                email = (emails_value.get("value") or "").strip()
 
             self.validate_email(email)
 
@@ -102,11 +102,11 @@ class SCIMUser(SCIMUser):
             emails = []
             primary = True
             for onemail in self.obj.email:
-                emails.append({'value': onemail, 'primary': primary})
+                emails.append({"value": onemail, "primary": primary})
                 primary = False
             return emails
         elif self.obj.email:
-            return [{'value': self.obj.email, 'primary': True}]
+            return [{"value": self.obj.email, "primary": True}]
         else:
             return []
 
@@ -118,7 +118,7 @@ class SCIMUser(SCIMUser):
         ipa_if = IPA()
         temp_password = None
         if self.is_new_user:
-            password = getattr(self.obj, '_scim_cleartext_password', None)
+            password = getattr(self.obj, "_scim_cleartext_password", None)
             # If temp password was not passed, create one.
             if password is None:
                 self.obj.require_password_change = True
@@ -140,7 +140,7 @@ class SCIMUser(SCIMUser):
                 #    # its critical that changes to this line are well
                 #    # considered before executed.
                 #    self.obj.__class__.objects.update(scim_id=str(self.obj.id))
-                logger.info(f'User saved. User id {self.obj.id}')
+                logger.info(f"User saved. User id {self.obj.id}")
         except Exception as e:
             raise e
 
