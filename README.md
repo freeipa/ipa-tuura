@@ -28,6 +28,12 @@ cd $IPA_TUURA/src/install
 python prepare_sssd.py
 ```
 
+### Keycloak integration domain provisioning
+
+Alternatively, auto-enroll the host by providing the required integration domain fields at the SCIM user storage plugin configuration in keycloak.
+
+![Keycloak integration domain](images/keycloak_plugin_intg_domain_fields.png)
+
 ### Django preparation
 
 Create and activate a python virtual env
