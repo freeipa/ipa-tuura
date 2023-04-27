@@ -337,7 +337,7 @@ def config_default_sssd(domain):
     domain_section = "%s/%s" % ("domain", domainname)
     sssdconfig.add_section(domain_section)
     sssdconfig.set(
-        domain_section, "ldap_search_base", "dn=" + suffix[0] + ", dn=" + suffix[1]
+        domain_section, "ldap_search_base", "dc=" + suffix[0] + ", dc=" + suffix[1]
     )
     sssdconfig.set(domain_section, "debug_level", "9")
     sssdconfig.set(domain_section, "id_provider", id_provider)
@@ -346,6 +346,7 @@ def config_default_sssd(domain):
     sssdconfig.set(domain_section, "ldap_uri", ldap_uri)
     sssdconfig.set(domain_section, "ldap_user_extra_attrs", ldap_user_extra_attrs)
     sssdconfig.set(domain_section, "ldap_default_bind_dn", domain["client_id"])
+    sssdconfig.set(domain_section, "ldap_default_authtok", domain["client_secret"])
     sssdconfig.set(domain_section, "use_fully_qualified_names", "True")
     sssdconfig.set(domain_section, "cache_credentials", "True")
     sssdconfig.set(domain_section, "enumerate", "True")
