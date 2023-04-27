@@ -35,6 +35,14 @@ logger = logging.getLogger(__name__)
 LDAP_GENERALIZED_TIME_FORMAT = "%Y%m%d%H%M%SZ"
 
 
+class LDAPNotFoundException(Exception):
+    """
+    Exception returned when an LDAP user or group is not found.
+    """
+
+    pass
+
+
 class IPANotFoundException(Exception):
     """
     Exception returned when an IPA user or group is not found.
@@ -325,28 +333,31 @@ class LDAP:
 
         :param scim_user: user object conforming to the SCIM User Schema
         """
-        attrs = {}
-        attrs["cn"] = self.encode(scim_user.obj.username)
-        attrs["sn"] = self.encode(scim_user.obj.last_name)
-        attrs["givenname"] = self.encode(scim_user.obj.first_name)
-        attrs["mail"] = self.encode(scim_user.obj.email)
-        attrs["objectClass"] = self.encode(self._user_object_classes)
-        ldif = modlist.addModlist(attrs)
+        dn = "uid={uid},{usersdn},{basedn}".format(
+            uid=scim_user.obj.username,
+            usersdn=self._users_dn,
+            basedn=self._ldap_search_base,
+        )
+
+        sn = self.encode(scim_user.obj.last_name)
+        givenname = self.encode(scim_user.obj.first_name)
+        mail = self.encode(scim_user.obj.email)
+
+        mod_attrs = [
+            (ldap.MOD_REPLACE, "sn", sn),
+            (ldap.MOD_REPLACE, "givenname", givenname),
+            (ldap.MOD_REPLACE, "mail", mail),
+        ]
 
         self._bind()
         try:
-            self._conn.modify_s(
-                "uid={uid},{usersdn},{basedn}".format(
-                    uid=scim_user.obj.username,
-                    usersdn=self._users_dn,
-                    basedn=self._ldap_search_base,
-                ),
-                ldif,
+            self._conn.modify_ext_s(dn, mod_attrs)
+        except ldap.TYPE_OR_VALUE_EXISTS:
+            pass
+        except ldap.NO_SUCH_OBJECT:
+            raise LDAPNotFoundException(
+                "User {} not found".format(scim_user.obj.username)
             )
-        except ldap.LDAPError as e:
-            desc = e.args[0]["desc"].strip()
-            info = e.args[0].get("info", "").strip()
-            logger.error(f"LDAP Error: {desc}: {info}")
 
     def delete(self, scim_user):
         """
@@ -492,8 +503,8 @@ class AD:
         try:
             # AD: cn, LDAP: uid
             self._conn.add_s(
-                "cn={uid},{usersdn},{basedn}".format(
-                    uid=scim_user.obj.username,
+                "cn={cn},{usersdn},{basedn}".format(
+                    cn=scim_user.obj.username,
                     usersdn=self._users_dn,
                     basedn=self._ldap_search_base,
                 ),
@@ -510,28 +521,31 @@ class AD:
 
         :param scim_user: user object conforming to the SCIM User Schema
         """
-        attrs = {}
-        attrs["objectclass"] = self.encode(self._user_object_classes)
-        attrs["cn"] = self.encode(scim_user.obj.username)
-        attrs["mail"] = self.encode(scim_user.obj.email)
-        attrs["givenname"] = self.encode(scim_user.obj.first_name)
-        attrs["sn"] = self.encode(scim_user.obj.last_name)
-        ldif = modlist.addModlist(attrs)
+        dn = "cn={cn},{usersdn},{basedn}".format(
+            cn=scim_user.obj.username,
+            usersdn=self._users_dn,
+            basedn=self._ldap_search_base,
+        )
+
+        sn = self.encode(scim_user.obj.last_name)
+        givenname = self.encode(scim_user.obj.first_name)
+        mail = self.encode(scim_user.obj.email)
+
+        mod_attrs = [
+            (ldap.MOD_REPLACE, "sn", sn),
+            (ldap.MOD_REPLACE, "givenname", givenname),
+            (ldap.MOD_REPLACE, "mail", mail),
+        ]
 
         self._bind()
         try:
-            self._conn.modify_s(
-                "cn={uid},{usersdn},{basedn}".format(
-                    uid=scim_user.obj.username,
-                    usersdn=self._users_dn,
-                    basedn=self._ldap_search_base,
-                ),
-                ldif,
+            self._conn.modify_ext_s(dn, mod_attrs)
+        except ldap.TYPE_OR_VALUE_EXISTS:
+            pass
+        except ldap.NO_SUCH_OBJECT:
+            raise LDAPNotFoundException(
+                "User {} not found".format(scim_user.obj.username)
             )
-        except ldap.LDAPError as e:
-            desc = e.args[0]["desc"].strip()
-            info = e.args[0].get("info", "").strip()
-            logger.error(f"LDAP Error: {desc}: {info}")
 
     def delete(self, scim_user):
         """
