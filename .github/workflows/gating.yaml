@@ -27,70 +27,63 @@ jobs:
       IMAGE_TAG: ${{ github.event.number || github.ref_name  }}  # use PR number else ref_name -> branch name
 
     steps:
-
-
-      - name: Dump GitHub context
-        env:
-          GITHUB_CONTEXT: ${{ toJson(github) }}
-        run: echo "$GITHUB_CONTEXT"
-
-      - name: Use owner registry when PR is from fork
+      - name: Use the ghcr.io image name derived from repository name (PR from fork)
         if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork
         run: |
           echo "IMAGE_REGISTRY_GITHUB=${IMAGE_REGISTRY_GITHUB}/${IMAGE,,}" >> ${GITHUB_ENV}
+          echo "IMAGE_TAG=pr-${IMAGE_TAG}" >> ${GITHUB_ENV}
         env:
-          IMAGE: ${{ toJson(github.event.pull_request.head.user.login) }}
+          IMAGE: ${{ github.event.pull_request.head.repo.full_name }}
 
-      - name: Set lower case GH image name derived from repository name
+      - name: Set the ghcr.io image name derived from repository name (PR from repo)
         if: github.event_name == 'pull_request' && ! github.event.pull_request.head.repo.fork
         run: |
           echo "IMAGE_REGISTRY_GITHUB=${IMAGE_REGISTRY_GITHUB}/${IMAGE,,}" >> ${GITHUB_ENV}
         env:
           IMAGE: '${{ github.repository }}'
 
+      - name: Log in to the GitHub Container registry
+        uses: redhat-actions/podman-login@v1
+        with:
+          registry: ${{ env.IMAGE_REGISTRY_GITHUB }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-#       - name: Log in to the GitHub Container registry
-#         uses: redhat-actions/podman-login@v1
-#         with:
-#           registry: ${{ env.IMAGE_REGISTRY_GITHUB }}
-#           username: ${{ github.actor }}
-#           password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Log in to Quay.io
+        if: github.event_name != 'pull_request'
+        uses: redhat-actions/podman-login@v1
+        with:
+          registry: ${{ env.IMAGE_REGISTRY_QUAY }}
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_TOKEN }}
 
-#       - name: Log in to Quay.io
-#         if: github.event_name != 'pull_request'
-#         uses: redhat-actions/podman-login@v1
-#         with:
-#           registry: ${{ env.IMAGE_REGISTRY_QUAY }}
-#           username: ${{ secrets.REGISTRY_USERNAME }}
-#           password: ${{ secrets.REGISTRY_TOKEN }}
+      - uses: actions/checkout@v3
 
-#       - uses: actions/checkout@v3
-
-#       - name: Build Image
-#         id: build-image
-#         uses: redhat-actions/buildah-build@v2
+      - name: Build Image
+        id: build-image
+        uses: redhat-actions/buildah-build@v2
 # yamllint disable rule:line-length
-#         with:
-#           tags: |
-#               ${{ format('{0}:{1}', env.IMAGE_REGISTRY_GITHUB, env.IMAGE_TAG) }}
-#               ${{ ( github.ref == 'refs/heads/main' && format('{0}:latest', env.IMAGE_REGISTRY_GITHUB) ) || '' }}
-#               ${{ ( github.ref_type == 'tag' && format('{0}:{1}', env.IMAGE_REGISTRY_GITHUB, github.ref_name) ) || '' }}
-#               ${{ ( github.event_name != 'pull_request' && format('{0}:{1}', env.IMAGE_REGISTRY_QUAY, env.IMAGE_TAG) ) || '' }}
-#               ${{ ( github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && format('{0}:latest', env.IMAGE_REGISTRY_QUAY) ) || '' }}
-#               ${{ ( github.event_name != 'pull_request' && github.ref_type == 'tag' && format('{0}:{1}', env.IMAGE_REGISTRY_QUAY, github.ref_name) ) || '' }}
-#           containerfiles: |
-#             ./Dockerfile.test
+        with:
+          tags: |
+              ${{ format('{0}:{1}', env.IMAGE_REGISTRY_GITHUB, env.IMAGE_TAG) }}
+              ${{ ( github.ref == 'refs/heads/main' && format('{0}:latest', env.IMAGE_REGISTRY_GITHUB) ) || '' }}
+              ${{ ( github.ref_type == 'tag' && format('{0}:{1}', env.IMAGE_REGISTRY_GITHUB, github.ref_name) ) || '' }}
+              ${{ ( github.event_name != 'pull_request' && format('{0}:{1}', env.IMAGE_REGISTRY_QUAY, env.IMAGE_TAG) ) || '' }}
+              ${{ ( github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && format('{0}:latest', env.IMAGE_REGISTRY_QUAY) ) || '' }}
+              ${{ ( github.event_name != 'pull_request' && github.ref_type == 'tag' && format('{0}:{1}', env.IMAGE_REGISTRY_QUAY, github.ref_name) ) || '' }}
+          containerfiles: |
+            ./Dockerfile.test
 # yamllint enable rule:line-length
 
-#       - name: Push to Repositories
-#         id: push-to-repo
-#         uses: redhat-actions/push-to-registry@v2
-#         with:
-#           image: ${{ steps.build-image.outputs.image }}
-#           tags: ${{ steps.build-image.outputs.tags }}
+      - name: Push to Repositories
+        id: push-to-repo
+        uses: redhat-actions/push-to-registry@v2
+        with:
+          image: ${{ steps.build-image.outputs.image }}
+          tags: ${{ steps.build-image.outputs.tags }}
 
-#       - name: Print image url
-#         run: echo "Image pushed to ${{ steps.push-to-repo.outputs.registry-paths }}"
+      - name: Print image url
+        run: echo "Image pushed to ${{ steps.push-to-repo.outputs.registry-paths }}"
 
 #   pull-container:
 #     name: Pull the ipa-tuura container
