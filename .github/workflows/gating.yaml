@@ -8,6 +8,7 @@ on:
 
 jobs:
   pre-commit:
+    name: Run the pre-commit hook
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -16,33 +17,105 @@ jobs:
           python-version: "3.10"
       - uses: pre-commit/action@v3.0.0
 
-  build-fedora-container-on-ubuntu:
+  build-container:
+    name: Build and push the ipa-tuura container
     runs-on: ubuntu-latest
-    steps:
-      - name: Setup Podman
-        run: |
-          sudo apt update
-          sudo apt-get -y install podman
-          podman pull fedora:38
+    if: github.repository_owner == 'freeipa'
+    needs: [pre-commit]
+    env:
+      IMAGE_REGISTRY_GITHUB: ghcr.io
+      IMAGE_REGISTRY_QUAY: quay.io/idmops/ipa-tuura
+      IMAGE_TAG: ${{ github.event.number || github.ref_name  }}  # use PR number else ref_name -> branch name
 
-      - name: Get source
-        uses: actions/checkout@v3
-        with:
-          path: 'ipa-tuura'
-# yamllint disable rule:line-length
-      - name: Create container and run tests
+    steps:
+      - name: Set the ghcr.io image name derived from repository name
         run: |
-          {
-              echo 'FROM fedora:38'
-              echo '# set TZ to ensure the test using timestamp'
-              echo 'ENV TZ=Europe/Madrid'
-              echo 'RUN dnf -y update'
-              echo 'RUN dnf -y install python3-sssdconfig maven unzip python3-pip git python3-netifaces python3-devel krb5-devel gcc sssd-dbus dbus-devel glibc glib2-devel dbus-daemon python-devel openldap-devel python-ipalib'
-              echo 'RUN dnf clean all'
-              echo 'COPY ipa-tuura ipa-tuura'
-              echo 'WORKDIR /ipa-tuura'
-              echo 'RUN pip install -r src/install/requirements.txt'
-              echo 'RUN pip install dbus-python python-ldap'
-              echo 'RUN python3 src/ipa-tuura/manage.py test'
-          } > podmanfile
-          podman build --tag gatingtest -f ./podmanfile
+          echo "IMAGE_REGISTRY_GITHUB=${IMAGE_REGISTRY_GITHUB}/${IMAGE,,}" >> ${GITHUB_ENV}
+        env:
+          IMAGE: '${{ github.repository }}'
+
+      - name: Log in to the GitHub Container registry
+        uses: redhat-actions/podman-login@v1
+        with:
+          registry: ${{ env.IMAGE_REGISTRY_GITHUB }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Log in to Quay.io
+        if: github.event_name != 'pull_request'
+        uses: redhat-actions/podman-login@v1
+        with:
+          registry: ${{ env.IMAGE_REGISTRY_QUAY }}
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_TOKEN }}
+
+      - uses: actions/checkout@v3
+
+      - name: Build Image
+        id: build-image
+        uses: redhat-actions/buildah-build@v2
+# yamllint disable rule:line-length
+        with:
+          tags: |
+              ${{ format('{0}:{1}', env.IMAGE_REGISTRY_GITHUB, env.IMAGE_TAG) }}
+              ${{ ( github.ref == 'refs/heads/main' && format('{0}:latest', env.IMAGE_REGISTRY_GITHUB) ) || '' }}
+              ${{ ( github.ref_type == 'tag' && format('{0}:{1}', env.IMAGE_REGISTRY_GITHUB, github.ref_name) ) || '' }}
+              ${{ ( github.event_name != 'pull_request' && format('{0}:{1}', env.IMAGE_REGISTRY_QUAY, env.IMAGE_TAG) ) || '' }}
+              ${{ ( github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && format('{0}:latest', env.IMAGE_REGISTRY_QUAY) ) || '' }}
+              ${{ ( github.event_name != 'pull_request' && github.ref_type == 'tag' && format('{0}:{1}', env.IMAGE_REGISTRY_QUAY, github.ref_name) ) || '' }}
+          containerfiles: |
+            ./Dockerfile.test
+# yamllint enable rule:line-length
+
+      - name: Push to Repositories
+        id: push-to-repo
+        uses: redhat-actions/push-to-registry@v2
+        with:
+          image: ${{ steps.build-image.outputs.image }}
+          tags: ${{ steps.build-image.outputs.tags }}
+
+      - name: Print image url
+        run: echo "Image pushed to ${{ steps.push-to-repo.outputs.registry-paths }}"
+
+  pull-container:
+    name: Pull the ipa-tuura container
+    runs-on: ubuntu-latest
+    if: github.repository_owner == 'freeipa'
+    needs: [build-container]
+    env:
+      IMAGE_REGISTRY_GITHUB: ghcr.io
+      IMAGE_REGISTRY_QUAY: quay.io/idmops/ipa-tuura
+      IMAGE_TAG: ${{ github.event.number || github.ref_name  }}  # use PR number else ref_name -> branch name
+
+    steps:
+      - name: Set the ghcr.io image name derived from repository name (PR from repo)
+        run: |
+          echo "IMAGE_REGISTRY_GITHUB=${IMAGE_REGISTRY_GITHUB}/${IMAGE,,}" >> ${GITHUB_ENV}
+        env:
+          IMAGE: '${{ github.repository }}'
+
+      - name: Log in to the GitHub Container registry
+        uses: redhat-actions/podman-login@v1
+        with:
+          registry: ${{ env.IMAGE_REGISTRY_GITHUB }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Log in to Quay.io
+        if: github.event_name != 'pull_request'
+        uses: redhat-actions/podman-login@v1
+        with:
+          registry: ${{ env.IMAGE_REGISTRY_QUAY }}
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_TOKEN }}
+
+      - name: Pull the image previously built from GitHub Container registry
+        run: |
+          podman  pull ${{ env.IMAGE_REGISTRY_GITHUB }}:${{ env.IMAGE_TAG }}
+          podman  images
+
+      - name: Pull the image previously built from Quay.io
+        if: github.event_name != 'pull_request'
+        run: |
+          podman  pull ${{ env.IMAGE_REGISTRY_QUAY }}:${{ env.IMAGE_TAG }}
+          podman  images
