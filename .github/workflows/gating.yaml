@@ -27,23 +27,26 @@ jobs:
       IMAGE_TAG: ${{ github.event.number || github.ref_name  }}  # use PR number else ref_name -> branch name
 
     steps:
-      - name: Set lower case GH image name derived from repository name
-        run: |
-          echo "IMAGE_REGISTRY_GITHUB=${IMAGE_REGISTRY_GITHUB}/${IMAGE,,}" >> ${GITHUB_ENV}
-        env:
-          IMAGE: '${{ github.repository }}'
+
 
       - name: Dump GitHub context
         env:
           GITHUB_CONTEXT: ${{ toJson(github) }}
         run: echo "$GITHUB_CONTEXT"
 
-      - name: PR from fork
-        if: github.event_name == 'pull_request'
-        run: echo "$HEAD $FORK"
+      - name: Use owner registry when PR is from fork
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork
+        run: |
+          echo "IMAGE_REGISTRY_GITHUB=${IMAGE_REGISTRY_GITHUB}/${IMAGE,,}" >> ${GITHUB_ENV}
         env:
-          HEAD: ${{ toJson(github.event.pull_request.head) }}
-          FORK: ${{ toJson(github.event.pull_request.head.repo.fork) }}
+          IMAGE: ${{ toJson(github.event.pull_request.head.user.login) }}
+
+      - name: Set lower case GH image name derived from repository name
+        if: github.event_name == 'pull_request' && ! github.event.pull_request.head.repo.fork
+        run: |
+          echo "IMAGE_REGISTRY_GITHUB=${IMAGE_REGISTRY_GITHUB}/${IMAGE,,}" >> ${GITHUB_ENV}
+        env:
+          IMAGE: '${{ github.repository }}'
 
 
 #       - name: Log in to the GitHub Container registry
