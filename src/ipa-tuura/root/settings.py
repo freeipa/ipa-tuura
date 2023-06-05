@@ -24,10 +24,10 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # See https://docs.djangoproject.com/en/3.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = '^$z^y$^ndlem@_f1)($_5vye6t!dk#8+8&9=y5*=-r(v465xg+'
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', '^$z^y$^ndlem@_f1)($_5vye6t!dk#8+8&9=y5*=-r(v465xg+')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get('DJANGO_DEBUG', '') != 'False'
 
 ALLOWED_HOSTS = ['*']
 DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
