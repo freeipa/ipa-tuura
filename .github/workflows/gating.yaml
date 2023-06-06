@@ -65,7 +65,7 @@ jobs:
               ${{ ( github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && format('{0}:latest', env.IMAGE_REGISTRY_QUAY) ) || '' }}
               ${{ ( github.event_name != 'pull_request' && github.ref_type == 'tag' && format('{0}:{1}', env.IMAGE_REGISTRY_QUAY, github.ref_name) ) || '' }}
           containerfiles: |
-            ./Dockerfile.test
+            ./Dockerfile
 # yamllint enable rule:line-length
 
       - name: Push to Repositories if PR is not from fork

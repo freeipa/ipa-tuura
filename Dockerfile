@@ -21,3 +21,7 @@ RUN pip install -r src/install/requirements.txt
 RUN pip install dbus-python python-ldap
 
 RUN python3 src/ipa-tuura/manage.py test
+
+RUN python3 src/ipa-tuura/manage.py createsuperuser
+
+ENTRYPOINT [ "python3 src/ipa-tuura/manage.py runserver" ]
