@@ -23,7 +23,6 @@ jobs:
     if: github.repository_owner == 'freeipa'
     needs: [pre-commit]
     env:
-      PR_NOT_FROM_FORK: ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
       IMAGE_REGISTRY_GITHUB: ghcr.io
       IMAGE_REGISTRY_QUAY: quay.io/idmops/ipa-tuura
       IMAGE_TAG: ${{ github.event.number || github.ref_name  }}  # use PR number else ref_name -> branch name
@@ -71,13 +70,15 @@ jobs:
       - name: Push to Repositories if PR is not from fork
         id: push-to-repo
         uses: redhat-actions/push-to-registry@v2
-        if: github.repository_owner == 'freeipa' && env.PR_NOT_FROM_FORK
+        if: |
+          github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name
         with:
           image: ${{ steps.build-image.outputs.image }}
           tags: ${{ steps.build-image.outputs.tags }}
 
       - name: Print image url if PR is not from fork
-        if: ${{ ! env.PR_FROM_FORK }}
+        if: |
+          github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name
         run: echo "Image pushed to ${{ steps.push-to-repo.outputs.registry-paths }}"
 
   pull-container:
