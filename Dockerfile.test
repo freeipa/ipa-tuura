@@ -1,23 +1,34 @@
-FROM fedora:38
-# set TZ to ensure the test using timestamp
+FROM registry.fedoraproject.org/fedora:38
 ENV TZ=Europe/Madrid
 
 LABEL org.opencontainers.image.source=https://github.com/freeipa/ipa-tuura
 LABEL org.opencontainers.image.description="IPA-tuura Container"
 
-RUN INSTALL_PKGS="\
-python3-sssdconfig maven unzip python3-pip git \
-python3-netifaces python3-devel krb5-devel gcc \
-sssd-dbus dbus-devel glibc glib2-devel dbus-daemon \
-python-devel openldap-devel python-ipalib \
-" && dnf install -y $INSTALL_PKGS && dnf clean all
+# Install dependencies
+RUN dnf -y update && dnf -y install \
+    dbus-daemon \
+    dbus-devel \
+    gcc \
+    glib2-devel \
+    glibc \
+    httpd \
+    krb5-devel \
+    maven \
+    mod_ssl \
+    mod_wsgi \
+    openldap-devel \
+    openssl \
+    python3-devel \
+    python3-netifaces \
+    python3-pip \
+    python3-sssdconfig \
+    python-devel \
+    python-ipalib \
+    sssd-dbus \
+    unzip \
+    && dnf clean all
 
 COPY . ipa-tuura
-
 WORKDIR /ipa-tuura
-
 RUN pip install -r src/install/requirements.txt
-
-RUN pip install dbus-python python-ldap
-
 RUN python3 src/ipa-tuura/manage.py test

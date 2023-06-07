@@ -1,0 +1,55 @@
+# Podmanfile for deploying ipa-tuura in production mode, using Apache HTTPS
+# server.
+
+# This needs to be built from root directory:
+# podman build -f src/prod/Containerfile .
+# Or with podman-compose:
+# podman-compose -f src/prod/podman-compose.yaml up -d
+
+FROM registry.fedoraproject.org/fedora:38
+ENV TZ=Europe/Madrid
+
+LABEL org.opencontainers.image.source=https://github.com/freeipa/ipa-tuura
+LABEL org.opencontainers.image.description="IPA-tuura Container"
+
+# Install dependencies
+RUN dnf -y update && dnf -y install \
+    dbus-daemon \
+    dbus-devel \
+    gcc \
+    glib2-devel \
+    glibc \
+    httpd \
+    krb5-devel \
+    maven \
+    mod_ssl \
+    mod_wsgi \
+    openldap-devel \
+    openssl \
+    python3-devel \
+    python3-netifaces \
+    python3-pip \
+    python3-sssdconfig \
+    python-devel \
+    python-ipalib \
+    sssd-dbus \
+    unzip \
+    && dnf clean all
+RUN mkdir /www
+COPY . /www/ipa-tuura
+RUN pip install -r /www/ipa-tuura/src/install/requirements.txt
+
+# Setup ipa-tuura
+RUN echo 'LoadModule wsgi_module modules/mod_wsgi.so' >> /etc/httpd/conf/httpd.conf
+RUN sed -i 's/ALLOWED_HOSTS = \[\]/ALLOWED_HOSTS = \['"'*'"'\]/g' /www/ipa-tuura/src/ipa-tuura/root/settings.py
+
+# Generate and configure self-signed certificate
+COPY src/prod/conf/ipa.conf /root
+RUN openssl req -config /root/ipa.conf -newkey rsa -x509 -days 365 -out /etc/pki/tls/certs/apache-selfsigned.crt
+RUN sed -i 's\localhost.crt\apache-selfsigned.crt\g' /etc/httpd/conf.d/ssl.conf
+RUN sed -i 's\localhost.key\apache-selfsigned.key\g' /etc/httpd/conf.d/ssl.conf
+
+# Setup Apache virtual host
+COPY src/prod/conf/ipatuura.conf /etc/httpd/conf.d/ipatuura.conf
+
+CMD ["/usr/sbin/httpd", "-DFOREGROUND"]
