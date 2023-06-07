@@ -2,6 +2,8 @@
 # Copyright (C) 2022  FreeIPA Contributors see COPYING for license
 #
 
+dbus-python
+python-ldap
 django
 django-scim2
 django-extensions
