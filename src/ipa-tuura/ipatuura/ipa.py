@@ -201,7 +201,6 @@ class LDAP:
         self._dn = None
         self._users_dn = None
         self._ldap_uri = None
-        self._ldap_search_base = None
         self._ldap_user_extra_attrs = None
         self._user_object_classes = None
         # TLS
@@ -223,7 +222,6 @@ class LDAP:
         self._dn = domain.client_id
         self._ldap_uri = domain.integration_domain_url
         self._ldap_user_extra_attrs = domain.user_extra_attrs
-        self._ldap_search_base = "dc=" + suffix[0] + ", dc=" + suffix[1]
         self._ldap_tls_cacert = domain.ldap_tls_cacert
         self._client_id = domain.client_id
         self._client_secret = domain.client_secret
@@ -315,10 +313,9 @@ class LDAP:
         try:
             # AD: cn, LDAP: uid
             self._conn.add_s(
-                "uid={uid},{usersdn},{basedn}".format(
+                "uid={uid},{usersdn}".format(
                     uid=scim_user.obj.username,
-                    usersdn=self._users_dn,
-                    basedn=self._ldap_search_base,
+                    usersdn=self._users_dn
                 ),
                 ldif,
             )
@@ -333,10 +330,9 @@ class LDAP:
 
         :param scim_user: user object conforming to the SCIM User Schema
         """
-        dn = "uid={uid},{usersdn},{basedn}".format(
+        dn = "uid={uid},{usersdn}".format(
             uid=scim_user.obj.username,
-            usersdn=self._users_dn,
-            basedn=self._ldap_search_base,
+            usersdn=self._users_dn
         )
 
         sn = self.encode(scim_user.obj.last_name)
@@ -368,10 +364,9 @@ class LDAP:
         self._bind()
         try:
             self._conn.delete_s(
-                "uid={uid},{usersdn},{basedn}".format(
+                "uid={uid},{usersdn}".format(
                     uid=scim_user.obj.username,
-                    usersdn=self._users_dn,
-                    basedn=self._ldap_search_base,
+                    usersdn=self._users_dn
                 )
             )
         except ldap.LDAPError as e:
@@ -390,7 +385,6 @@ class AD:
         self._dn = None
         self._users_dn = None
         self._ldap_uri = None
-        self._ldap_search_base = None
         self._ldap_user_extra_attrs = None
         self._user_object_classes = None
         # TLS
@@ -412,7 +406,6 @@ class AD:
         self._dn = domain.client_id + "@" + domain.name
         self._ldap_uri = domain.integration_domain_url
         self._ldap_user_extra_attrs = domain.user_extra_attrs
-        self._ldap_search_base = "dc=" + suffix[0] + ", dc=" + suffix[1]
         self._ldap_tls_cacert = domain.ldap_tls_cacert
         self._client_id = domain.client_id
         self._client_secret = domain.client_secret
@@ -503,10 +496,9 @@ class AD:
         try:
             # AD: cn, LDAP: uid
             self._conn.add_s(
-                "cn={cn},{usersdn},{basedn}".format(
+                "cn={cn},{usersdn}".format(
                     cn=scim_user.obj.username,
-                    usersdn=self._users_dn,
-                    basedn=self._ldap_search_base,
+                    usersdn=self._users_dn
                 ),
                 ldif,
             )
@@ -521,10 +513,9 @@ class AD:
 
         :param scim_user: user object conforming to the SCIM User Schema
         """
-        dn = "cn={cn},{usersdn},{basedn}".format(
+        dn = "cn={cn},{usersdn}".format(
             cn=scim_user.obj.username,
-            usersdn=self._users_dn,
-            basedn=self._ldap_search_base,
+            usersdn=self._users_dn
         )
 
         sn = self.encode(scim_user.obj.last_name)
@@ -556,10 +547,9 @@ class AD:
         self._bind()
         try:
             self._conn.delete_s(
-                "cn={uid},{usersdn},{basedn}".format(
+                "cn={uid},{usersdn}".format(
                     uid=scim_user.obj.username,
-                    usersdn=self._users_dn,
-                    basedn=self._ldap_search_base,
+                    usersdn=self._users_dn
                 )
             )
         except ldap.LDAPError as e:

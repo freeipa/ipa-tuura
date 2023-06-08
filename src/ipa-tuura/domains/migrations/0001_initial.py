@@ -23,7 +23,7 @@ class Migration(migrations.Migration):
                 ('id_provider', models.CharField(choices=[('ipa', 'IPA Provider'), ('ad', 'LDAP Active Directory Provider'), ('ldap', 'LDAP Provider')], default='ipa', max_length=5)),
                 ('user_extra_attrs', models.CharField(max_length=255)),
                 ('user_object_classes', models.CharField(max_length=255)),
-                ('users_dn', models.CharField(blank=True, max_length=255)),
+                ('users_dn', models.CharField(max_length=255)),
                 ('ldap_tls_cacert', models.CharField(max_length=100)),
             ],
         ),

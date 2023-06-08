@@ -61,7 +61,7 @@ class Domain(models.Model):
     user_object_classes = models.CharField(max_length=255, blank=True)
 
     # Optional full DN of LDAP tree where users are
-    users_dn = models.CharField(max_length=255, blank=True)
+    users_dn = models.CharField(max_length=255)
 
     # LDAP auth with TLS support, the file path for now
     # TODO: base64 decode CA cert from HTTP request
@@ -82,15 +82,11 @@ class Domain(models.Model):
                 self.user_object_classes = (
                     "inetOrgPerson," "organizationalPerson," "person," "top"
                 )
-            if not self.users_dn:
-                self.users_dn = "ou=people"
 
         elif self.id_provider == "ad":
             if not self.user_object_classes:
                 self.user_object_classes = (
                     "user," "organizationalPerson," "person," "top"
                 )
-            if not self.users_dn:
-                self.users_dn = "CN=Users"
 
         super().save(*args, **kwargs)
