@@ -211,6 +211,7 @@ class LDAP:
         # init and connect
         self._fetch_domain()
         self._conn = self._bind()
+        self._user_rdn_attr = "uid"
 
     def _fetch_domain(self):
         """
@@ -313,9 +314,10 @@ class LDAP:
         try:
             # AD: cn, LDAP: uid
             self._conn.add_s(
-                "uid={uid},{usersdn}".format(
-                    uid=scim_user.obj.username,
-                    usersdn=self._users_dn
+                "{rdnattr}={rdnval},{usersdn}".format(
+                    rdnattr=self._user_rdn_attr,
+                    rdnval=scim_user.obj.username,
+                    usersdn=self._users_dn,
                 ),
                 ldif,
             )
@@ -330,9 +332,10 @@ class LDAP:
 
         :param scim_user: user object conforming to the SCIM User Schema
         """
-        dn = "uid={uid},{usersdn}".format(
-            uid=scim_user.obj.username,
-            usersdn=self._users_dn
+        dn = "{rdnattr}={rdnval},{usersdn}".format(
+            rdnattr=self._user_rdn_attr,
+            rdnval=scim_user.obj.username,
+            usersdn=self._users_dn,
         )
 
         sn = self.encode(scim_user.obj.last_name)
@@ -364,9 +367,10 @@ class LDAP:
         self._bind()
         try:
             self._conn.delete_s(
-                "uid={uid},{usersdn}".format(
-                    uid=scim_user.obj.username,
-                    usersdn=self._users_dn
+                "{rdnattr}={rdnval},{usersdn}".format(
+                    rdnattr=self._user_rdn_attr,
+                    rdnval=scim_user.obj.username,
+                    usersdn=self._users_dn,
                 )
             )
         except ldap.LDAPError as e:
@@ -375,187 +379,14 @@ class LDAP:
             logger.error(f"LDAP Error: {desc}: {info}")
 
 
-class AD:
+class AD(LDAP):
     """
     Initialization of the LDAP AD writable interface
     """
 
     def __init__(self):
-        self._conn = None
-        self._dn = None
-        self._users_dn = None
-        self._ldap_uri = None
-        self._ldap_user_extra_attrs = None
-        self._user_object_classes = None
-        # TLS
-        self._ldap_tls_cacert = None
-        self._sasl_gssapi = ldap.sasl.sasl({}, "GSSAPI")
-        self._client_id = None
-        self._client_secret = None
-        # init and connect
-        self._fetch_domain()
-        self._conn = self._bind()
-
-    def _fetch_domain(self):
-        """
-        Fetch relevant information from the integration domain
-        """
-        domain = domains.models.Domain.objects.last()
-        suffix = domain.name.split(".")
-
-        self._dn = domain.client_id + "@" + domain.name
-        self._ldap_uri = domain.integration_domain_url
-        self._ldap_user_extra_attrs = domain.user_extra_attrs
-        self._ldap_tls_cacert = domain.ldap_tls_cacert
-        self._client_id = domain.client_id
-        self._client_secret = domain.client_secret
-        self._users_dn = domain.users_dn
-        self._user_object_classes = [
-            x.strip() for x in domain.user_object_classes.split(",")
-        ]
-        logger.info(f"Domain info: {domain}")
-
-    def _bind(self):
-        """
-        Bind to ldap server
-        """
-        self._fetch_domain()
-        # TODO enable TLS support
-        # self._conn = ldap.initialize(self._ldap_uri)
-        # self._conn.set_option(ldap.OPT_X_TLS_CACERTFILE, self._tls_cacert)
-        # self._conn.sasl_interactive_bind_s('', self._sasl_gssapi)
-        self._conn = ldap.initialize(self._ldap_uri)
-        self._conn.protocol_version = 3
-        self._conn.set_option(ldap.OPT_REFERRALS, 0)
-        try:
-            self._conn.simple_bind_s(self._dn, self._client_secret)
-        except Exception as e:
-            logger.error(f"Unable to bind to LDAP server {e}")
-        else:
-            return self._conn
-
-    def encode(self, val):
-        """
-        Encode attribute value to LDAP representation (str/bytes)
-        """
-        # Booleans are both an instance of bool and int, therefore
-        # test for bool before int otherwise the int clause will be
-        # entered for a boolean value instead of the boolean clause.
-        if isinstance(val, bool):
-            if val:
-                return b"TRUE"
-            else:
-                return b"FALSE"
-        elif isinstance(val, (unicode, int, Decimal, DN, Principal)):
-            return str(val).encode("utf-8")
-        elif isinstance(val, DNSName):
-            return val.to_text().encode("ascii")
-        elif isinstance(val, bytes):
-            return val
-        elif isinstance(val, list):
-            return [self.encode(m) for m in val]
-        elif isinstance(val, tuple):
-            return tuple(self.encode(m) for m in val)
-        elif isinstance(val, dict):
-            # key in dict must be str not bytes
-            dct = dict((k, self.encode(v)) for k, v in val.items())
-            return dct
-        elif isinstance(val, datetime.datetime):
-            return val.strftime(LDAP_GENERALIZED_TIME_FORMAT).encode("utf-8")
-        elif isinstance(val, crypto_x509.Certificate):
-            return val.public_bytes(x509.Encoding.DER)
-        elif val is None:
-            return None
-        else:
-            raise TypeError(
-                "attempt to pass unsupported type to ldap, "
-                "value=%s type=%s" % (val, type(val))
-            )
-
-    def add(self, scim_user):
-        """
-        Add a new user
-
-        :param scim_user: user object conforming to the SCIM User Schema
-
-        For an AD deployment:
-        dc=ad,dc=com
-          cn=users
-            cn=oneuser
-        """
-        # TODO: implement dynamic list based on _ldap_user_extra_attrs
-        attrs = {}
-        attrs["objectclass"] = self.encode(self._user_object_classes)
-        attrs["cn"] = self.encode(scim_user.obj.username)
-        attrs["mail"] = self.encode(scim_user.obj.email)
-        attrs["givenname"] = self.encode(scim_user.obj.first_name)
-        attrs["sn"] = self.encode(scim_user.obj.last_name)
-        ldif = modlist.addModlist(attrs)
-
-        self._bind()
-        try:
-            # AD: cn, LDAP: uid
-            self._conn.add_s(
-                "cn={cn},{usersdn}".format(
-                    cn=scim_user.obj.username,
-                    usersdn=self._users_dn
-                ),
-                ldif,
-            )
-        except ldap.LDAPError as e:
-            desc = e.args[0]["desc"].strip()
-            info = e.args[0].get("info", "").strip()
-            logger.error(f"LDAP Error: {desc}: {info}")
-
-    def modify(self, scim_user):
-        """
-        Modify user
-
-        :param scim_user: user object conforming to the SCIM User Schema
-        """
-        dn = "cn={cn},{usersdn}".format(
-            cn=scim_user.obj.username,
-            usersdn=self._users_dn
-        )
-
-        sn = self.encode(scim_user.obj.last_name)
-        givenname = self.encode(scim_user.obj.first_name)
-        mail = self.encode(scim_user.obj.email)
-
-        mod_attrs = [
-            (ldap.MOD_REPLACE, "sn", sn),
-            (ldap.MOD_REPLACE, "givenname", givenname),
-            (ldap.MOD_REPLACE, "mail", mail),
-        ]
-
-        self._bind()
-        try:
-            self._conn.modify_ext_s(dn, mod_attrs)
-        except ldap.TYPE_OR_VALUE_EXISTS:
-            pass
-        except ldap.NO_SUCH_OBJECT:
-            raise LDAPNotFoundException(
-                "User {} not found".format(scim_user.obj.username)
-            )
-
-    def delete(self, scim_user):
-        """
-        Delete user
-
-        :param scim_user: user object conforming to the SCIM User Schema
-        """
-        self._bind()
-        try:
-            self._conn.delete_s(
-                "cn={uid},{usersdn}".format(
-                    uid=scim_user.obj.username,
-                    usersdn=self._users_dn
-                )
-            )
-        except ldap.LDAPError as e:
-            desc = e.args[0]["desc"].strip()
-            info = e.args[0].get("info", "").strip()
-            logger.error(f"LDAP Error: {desc}: {info}")
+        super().__init__()
+        self._user_rdn_attr = "cn"
 
 
 class _IPA:
