@@ -41,7 +41,7 @@ class Domain(models.Model):
     integration_domain_url = models.CharField(max_length=255)
 
     # Temporary admin service username
-    client_id = models.CharField(max_length=20)
+    client_id = models.CharField(max_length=255)
 
     # Temporary admin service password
     client_secret = models.CharField(max_length=20)

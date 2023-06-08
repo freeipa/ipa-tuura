@@ -17,7 +17,7 @@ class Migration(migrations.Migration):
                 ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('name', models.CharField(max_length=80)),
                 ('integration_domain_url', models.CharField(max_length=255)),
-                ('client_id', models.CharField(max_length=20)),
+                ('client_id', models.CharField(max_length=255)),
                 ('client_secret', models.CharField(max_length=20)),
                 ('description', models.TextField(blank=True)),
                 ('id_provider', models.CharField(choices=[('ipa', 'IPA Provider'), ('ad', 'LDAP Active Directory Provider'), ('ldap', 'LDAP Provider')], default='ipa', max_length=5)),
