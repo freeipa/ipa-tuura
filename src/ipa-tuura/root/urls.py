@@ -30,5 +30,6 @@ urlpatterns = [
     path("scim/v2/", include("django_scim.urls")),
     path("creds/", include("creds.urls")),
     path("domains/v1/", include("domains.urls")),
-    re_path("domains/doc", schema_view),
+    re_path("domains/doc", schema_view.with_ui('swagger', cache_timeout=0)),
+    
 ]
