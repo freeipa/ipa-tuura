@@ -1,0 +1,118 @@
+services:
+  dns:
+    restart: always
+    image: ${REGISTRY}/ci-dns:${TAG}
+    container_name: dns
+    env_file: ./env.containers
+    volumes:
+    - ./data/configs/dnsmasq.conf:/etc/dnsmasq.conf
+    cap_add:
+    - NET_RAW
+    - NET_ADMIN
+    - SYS_CHROOT
+    security_opt:
+    - apparmor=unconfined
+    - label=disable
+    - seccomp=unconfined
+    networks:
+      sssd:
+        ipv4_address: 172.16.100.2
+  ipa:
+    image: ${REGISTRY}/ci-ipa:${TAG}
+    container_name: ipa
+    hostname: master.ipa.test
+    dns: 172.16.100.2
+    env_file: ./env.containers
+    volumes:
+    - ./shared:/shared:rw
+    cap_add:
+    - SYS_ADMIN
+    - SYS_PTRACE
+    - AUDIT_WRITE
+    - AUDIT_CONTROL
+    - SYS_CHROOT
+    - NET_ADMIN
+    security_opt:
+    - apparmor=unconfined
+    - label=disable
+    - seccomp=unconfined
+    networks:
+      sssd:
+        ipv4_address: 172.16.100.10
+
+  bridge:
+    #image: localhost/ipa-tuura/base:latest
+    #image: quay.io/ftrivino/bridge-prod
+    image: quay.io/ftrivino/bridge-devel
+    container_name: bridge
+    hostname: bridge.ipa.test
+    dns: 172.16.100.2
+    #command: /usr/sbin/httpd -DFOREGROUND
+    command: python3 manage.py runserver 0.0.0.0:8000
+    env_file:
+    - ./env.containers
+    - ./env.secrets
+    volumes:
+    - ./shared:/shared:rw
+    cap_add:
+    - SYS_ADMIN
+    - SYS_PTRACE
+    - SYS_CHROOT
+    - AUDIT_WRITE
+    - AUDIT_CONTROL
+    security_opt:
+    - apparmor=unconfined
+    - label=disable
+    - seccomp=unconfined
+    ports:
+    - 8005:8000
+    - 3501:3500
+    - 4701:81
+    - 4430:443
+    networks:
+      sssd:
+        ipv4_address: 172.16.100.100
+
+  keycloak:
+    image: ${REGISTRY}/ci-keycloak:${TAG}
+    container_name: keycloak
+    hostname: master.keycloak.test
+    dns: 172.16.100.2
+    env_file:
+    - ./env.containers
+    - ./env.secrets
+    volumes:
+    - ./data/keycloak/scim-user-spi-${PLUGIN_VER}-SNAPSHOT.jar:/opt/keycloak/providers/scim.jar
+    #- ./data/keycloak/rootCA.crt:/etc/pki/ca-trust/source/anchors/rootCA.crt
+    #- ./data/keycloak/server.crt:/data/certs/master.keycloak.test.crt
+    #- ./data/keycloak/server.key:/data/certs/master.keycloak.test.key
+    #- ./data/keycloak/server.keystore:/data/certs/master.keycloak.test.keystore
+    cap_add:
+    - SYS_ADMIN
+    - SYS_PTRACE
+    - SYS_CHROOT
+    - NET_ADMIN
+    - AUDIT_WRITE
+    - AUDIT_CONTROL
+    security_opt:
+    - apparmor=unconfined
+    - label=disable
+    - seccomp=unconfined
+    ports:
+    - 8080:8080
+    - 8443:8443
+    - 9090:9090
+    networks:
+      sssd:
+        ipv4_address: 172.16.100.70
+
+networks:
+  sssd:
+    name: sssd-ci
+    driver: bridge
+    ipam:
+     config:
+       - subnet: 172.16.100.0/24
+         gateway: 172.16.100.1
+     options:
+        driver: host-local

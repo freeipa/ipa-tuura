@@ -1,0 +1,165 @@
+services:
+  dns:
+    restart: always
+    image: ${REGISTRY}/ci-dns:${TAG}
+    container_name: dns
+    env_file: ./env.containers
+    volumes:
+    - ./data/configs/dnsmasq.conf:/etc/dnsmasq.conf
+    cap_add:
+    - NET_RAW
+    - NET_ADMIN
+    security_opt:
+    - apparmor=unconfined
+    - label=disable
+    - seccomp=unconfined
+    networks:
+      ipa-tuura:
+        ipv4_address: 172.16.100.2
+
+  ipa:
+    image: ${REGISTRY}/ci-ipa:${TAG}
+    container_name: ipa
+    hostname: master.ipa.test
+    dns: 172.16.100.2
+    env_file: ./env.containers
+    volumes:
+    - ./shared:/shared:rw
+    cap_add:
+    - SYS_ADMIN
+    - SYS_PTRACE
+    - AUDIT_WRITE
+    - AUDIT_CONTROL
+    - SYS_CHROOT
+    - NET_ADMIN
+    security_opt:
+    - apparmor=unconfined
+    - label=disable
+    - seccomp=unconfined
+    networks:
+      ipa-tuura:
+        ipv4_address: 172.16.100.10
+
+  ipa-tuura:
+    #image: quay.io/idmops/bridge:latest
+    image: localhost/ipa-tuura/base:latest
+    container_name: ipa-tuura
+    hostname: ipa-tuura.bridge.test
+    dns: 172.16.100.2
+    env_file: ./env.containers
+    volumes:
+    - ./shared:/shared:rw
+    cap_add:
+    - SYS_ADMIN
+    - SYS_PTRACE
+    - SYS_CHROOT
+    - NET_ADMIN
+    - AUDIT_WRITE
+    - AUDIT_CONTROL
+    security_opt:
+    - apparmor=unconfined
+    - label=disable
+    - seccomp=unconfined
+    networks:
+      ipa-tuura:
+        ipv4_address: 172.16.100.14
+
+  keycloak:
+    image: ${REGISTRY}/ci-keycloak:${TAG}
+    #image: quay.io/keycloak/keycloak:${KC_TAG}
+    container_name: keycloak
+    hostname: master.keycloak.test
+    dns: 172.16.100.2
+    env_file: ./env.containers
+    volumes:
+    - ./data/keycloak/scim-user-spi-${PLUGIN_VER}-SNAPSHOT.jar:/opt/keycloak/providers/scim.jar
+    cap_add:
+    - SYS_ADMIN
+    - SYS_PTRACE
+    - SYS_CHROOT
+    - NET_ADMIN
+    - AUDIT_WRITE
+    - AUDIT_CONTROL
+    security_opt:
+    - apparmor=unconfined
+    - label=disable
+    - seccomp=unconfined
+    networks:
+      ipa-tuura:
+        ipv4_address: 172.16.100.70
+
+  nextcloud:
+    image: ${REGISTRY}/nextcloud:${TAG}
+    container_name: nextcloud
+    hostname: master.nextcloud.test
+    dns: 172.16.100.2
+    env_file: ./env.containers
+    volumes:
+    - ./shared:/shared:rw
+    cap_add:
+    - SYS_ADMIN
+    - SYS_PTRACE
+    - AUDIT_WRITE
+    - AUDIT_CONTROL
+    security_opt:
+    - apparmor=unconfined
+    - label=disable
+    - seccomp=unconfined
+    networks:
+      ipa-tuura:
+        ipv4_address: 172.16.100.12
+
+  mariadb:
+    image: ${REGISTRY}/mariadb:${TAG}
+    container_name: mariadb
+    hostname: master.mariadb.test
+    dns: 172.16.100.2
+    env_file: ./env.containers
+    volumes:
+    - ./shared:/shared:rw
+    cap_add:
+    - SYS_ADMIN
+    - SYS_PTRACE
+    - AUDIT_WRITE
+    - AUDIT_CONTROL
+    security_opt:
+    - apparmor=unconfined
+    - label=disable
+    - seccomp=unconfined
+    networks:
+      ipa-tuura:
+        ipv4_address: 172.16.100.13
+
+  ldap:
+    image: ${REGISTRY}/ci-ldap:${TAG}
+    container_name: ldap
+    hostname: master.ldap.test
+    dns: 172.16.100.2
+    env_file: ./env.containers
+    volumes:
+    - ./shared:/shared:rw
+    cap_add:
+    - SYS_ADMIN
+    - SYS_PTRACE
+    - SYS_CHROOT
+    - NET_ADMIN
+    - AUDIT_WRITE
+    - AUDIT_CONTROL
+    security_opt:
+    - apparmor=unconfined
+    - label=disable
+    - seccomp=unconfined
+    networks:
+      ipa-tuura:
+        ipv4_address: 172.16.100.20
+
+networks:
+  ipa-tuura:
+    name: ipa-tuura-ci
+    driver: bridge
+    ipam:
+     config:
+       - subnet: 172.16.100.0/24
+         gateway: 172.16.100.1
+     options:
+        driver: host-local
