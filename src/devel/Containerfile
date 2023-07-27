@@ -1,0 +1,76 @@
+# Podmanfile for deploying ipa-tuura in development mode, including Swagger.
+
+# This needs to be built from root directory:
+# podman build -f src/devel/Containerfile .
+
+FROM registry.fedoraproject.org/fedora:38
+ENV TZ=Europe/Madrid
+
+LABEL org.opencontainers.image.source=https://github.com/freeipa/ipa-tuura
+LABEL org.opencontainers.image.description="Bridge Development Image"
+
+# Install system dependencies
+RUN dnf -y update && dnf -y install \
+    dbus-daemon \
+    dbus-devel \
+    gcc \
+    glib2-devel \
+    glibc \
+    httpd \
+    krb5-devel \
+    maven \
+    mod_ssl \
+    mod_wsgi \
+    openldap-devel \
+    openssl \
+    python3-devel \
+    python3-netifaces \
+    python3-pip \
+    python3-sssdconfig \
+    python-devel \
+    python-ipalib \
+    sssd-dbus \
+    unzip \
+    && dnf clean all
+
+# Install bridge dependencies
+RUN dnf -y update && dnf -y install \
+    openldap-clients \
+    sssd \
+    sssd-ldap \
+    sssd-ipa \
+    freeipa-client \
+    oddjob-mkhomedir \
+    && dnf clean all
+
+# Copy the source code
+RUN mkdir /www
+COPY . /www/ipa-tuura
+
+# Install project dependencies
+RUN pip install -r /www/ipa-tuura/src/install/requirements.txt
+
+# packaging up model changes
+WORKDIR /www/ipa-tuura/src/ipa-tuura/
+RUN python3 manage.py makemigrations
+RUN python3 manage.py migrate
+
+# ENV
+ENV DJANGO_SUPERUSER_PASSWORD Secret123
+ENV DJANGO_SUPERUSER_USERNAME scim
+ENV DJANGO_SUPERUSER_EMAIL scim@ipa.test
+
+# Create user
+RUN python3 manage.py createsuperuser --scim_username scim --noinput
+
+# Configuration
+RUN sed -i 's/ALLOWED_HOSTS = \[\]/ALLOWED_HOSTS = \['"'*'"'\]/g' root/settings.py
+
+# WA for swagger
+RUN sed -i 's/staticfiles/static/g' /usr/local/lib/python3.11/site-packages/rest_framework_swagger/templates/rest_framework_swagger/index.html
+
+# Create and enable ipatuura service in devel mode (via manage.py)
+COPY src/devel/conf/ipatuura.service /etc/systemd/system/ipatuura.service
+RUN systemctl enable ipatuura
+
+CMD [ "/sbin/init" ]
