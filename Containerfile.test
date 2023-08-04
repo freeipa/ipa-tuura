@@ -1,0 +1,74 @@
+# Podmanfile for building bridge image in development mode, including Swagger.
+
+FROM registry.fedoraproject.org/fedora:38
+ENV TZ=Europe/Madrid
+
+LABEL org.opencontainers.image.source=https://github.com/freeipa/ipa-tuura
+LABEL org.opencontainers.image.description="Fedora Bridge Development Image"
+
+# Install system dependencies
+RUN dnf -y update && dnf -y install \
+    dbus-daemon \
+    dbus-devel \
+    gcc \
+    glib2-devel \
+    glibc \
+    httpd \
+    krb5-devel \
+    maven \
+    mod_ssl \
+    mod_wsgi \
+    openldap-devel \
+    openssl \
+    python3-devel \
+    python3-netifaces \
+    python3-pip \
+    python3-sssdconfig \
+    python-devel \
+    python-ipalib \
+    sssd-dbus \
+    unzip \
+    && dnf clean all
+
+# Install bridge dependencies
+RUN dnf -y update && dnf -y install \
+    openldap-clients \
+    sssd \
+    sssd-ldap \
+    sssd-ipa \
+    realmd \
+    freeipa-client \
+    oddjob-mkhomedir \
+    && dnf clean all
+
+# Copy the source code
+RUN mkdir /www
+COPY . /www/ipa-tuura
+
+# Install project dependencies
+RUN pip install -r /www/ipa-tuura/src/install/requirements.txt
+
+# packaging up model changes
+WORKDIR /www/ipa-tuura/src/ipa-tuura/
+RUN python3 manage.py makemigrations
+RUN python3 manage.py migrate
+
+# ENV
+ENV DJANGO_SUPERUSER_PASSWORD Secret123
+ENV DJANGO_SUPERUSER_USERNAME scim
+ENV DJANGO_SUPERUSER_EMAIL scim@ipa.test
+
+# Create user
+RUN python3 manage.py createsuperuser --scim_username scim --noinput
+
+# Configuration
+RUN sed -i 's/ALLOWED_HOSTS = \[\]/ALLOWED_HOSTS = \['"'*'"'\]/g' root/settings.py
+
+# Install Unit Test Dependencies
+RUN pip install factory_boy coverage
+
+# Create and enable bridge service in devel mode (via manage.py HTTP)
+COPY bridge-devel.service /etc/systemd/system/bridge.service
+RUN systemctl enable bridge
+
+CMD [ "/sbin/init" ]

@@ -51,21 +51,15 @@ jobs:
 
       - uses: actions/checkout@v3
 
-      - name: Build Image
-        id: build-image
-        uses: redhat-actions/buildah-build@v2
-# yamllint disable rule:line-length
-        with:
-          tags: |
-              ${{ format('{0}:{1}', env.IMAGE_REGISTRY_GITHUB, env.IMAGE_TAG) }}
-              ${{ ( github.ref == 'refs/heads/main' && format('{0}:latest', env.IMAGE_REGISTRY_GITHUB) ) || '' }}
-              ${{ ( github.ref_type == 'tag' && format('{0}:{1}', env.IMAGE_REGISTRY_GITHUB, github.ref_name) ) || '' }}
-              ${{ ( github.event_name != 'pull_request' && format('{0}:{1}', env.IMAGE_REGISTRY_QUAY, env.IMAGE_TAG) ) || '' }}
-              ${{ ( github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && format('{0}:latest', env.IMAGE_REGISTRY_QUAY) ) || '' }}
-              ${{ ( github.event_name != 'pull_request' && github.ref_type == 'tag' && format('{0}:{1}', env.IMAGE_REGISTRY_QUAY, github.ref_name) ) || '' }}
-          containerfiles: |
-            ./Dockerfile.test
-# yamllint enable rule:line-length
+      - name: build image
+        run: |
+          sudo -E su
+          podman build -t ${{ env.IMAGE_REGISTRY_GITHUB }}:${{ env.IMAGE_TAG }} -f Containerfile.test .
+
+      - name: Print image
+        run: |
+          sudo -E su
+          podman images
 
       - name: Push to Repositories if PR is not from fork
         id: push-to-repo
@@ -80,6 +74,22 @@ jobs:
         if: |
           github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name
         run: echo "Image pushed to ${{ steps.push-to-repo.outputs.registry-paths }}"
+
+      - name: Deploy the service
+        run: |
+          sudo -E su
+          podman run -d --privileged \
+                 -p 8000:8000 -p 3501:3500 -p 4701:81 -p 4430:443 \
+                 --hostname bridge.ipa.test \
+                 --name bridge \
+                 ${{ env.IMAGE_REGISTRY_GITHUB }}:${{ env.IMAGE_TAG }}
+
+      - name: Run the unit tests
+        run: |
+          sudo -E su
+          podman exec -it bridge sh -c "coverage run manage.py test domains -v 2 &&
+          coverage report &&
+          coverage html"
 
   pull-container:
     name: Pull the ipa-tuura container if PR is not from fork
