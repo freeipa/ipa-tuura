@@ -4,8 +4,8 @@
 
 from django.db import NotSupportedError
 from django_scim.filters import GroupFilterQuery, UserFilterQuery
-from ipatuura.models import SSSDGroupToGroupModel, SSSDUserToUserModel
-from ipatuura.sssd import SSSD, SSSDNotFoundException
+from scim.models import SSSDGroupToGroupModel, SSSDUserToUserModel
+from scim.sssd import SSSD, SSSDNotFoundException
 
 
 class SCIMUserFilterQuery(UserFilterQuery):
