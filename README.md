@@ -94,9 +94,9 @@ This project uses Sphinx as a documentation generator. Follow these steps to bui
 the documentation:
 
 ```bash
-cd $IPA_TUURA/doc/
+cd $IPA_TUURA/docs/
 make venv
 make html
 ```
 
-The generated documentation will be available at `$IPA_TUURA/doc/_build/html/` folder.
+The generated documentation will be available at `$IPA_TUURA/docs/_build/html/` folder.
