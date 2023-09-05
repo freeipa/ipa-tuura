@@ -5,9 +5,9 @@ src/ipa-tuura/db.sqlite3
 src/ipa-tuura/scimv2bridge/migrations/
 
 # doc
-/doc/_build
-/doc/.venv
-!/doc/Makefile
+/docs/_build
+/docs/.venv
+!/docs/Makefile
 
 # In-tree build files
 *~
