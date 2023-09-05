@@ -31,7 +31,7 @@ repos:
     rev: 22.10.0
     hooks:
       - id: black
-        exclude: ^(doc/|src/ipa-tuura/ipatuura/migrations/|src/ipa-tuura/domains/migrations/|src/ipa-tuura/root/settings).*
+        exclude: ^(doc/|src/ipa-tuura/scim/migrations/|src/ipa-tuura/domains/migrations/|src/ipa-tuura/root/settings).*
         types: [python]
         args: [--safe, --quiet, --line-length, "88"]
         require_serial: true
@@ -41,4 +41,4 @@ repos:
     hooks:
       - id: isort
         additional_dependencies: [toml]
-        exclude: ^(doc/|src/ipa-tuura/ipatuura/migrations/|src/ipa-tuura/domains/migrations/|src/ipa-tuura/root/settings).*
+        exclude: ^(doc/|src/ipa-tuura/scim/migrations/|src/ipa-tuura/domains/migrations/|src/ipa-tuura/root/settings).*

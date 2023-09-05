@@ -42,7 +42,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django_scim',
-    'ipatuura',
+    'scim',
     'creds',
     'rest_framework',
     'domains',
@@ -134,16 +134,16 @@ STATIC_URL = '/static/'
 # We assume that an admin keytab is available
 os.environ["KRB5_CLIENT_KTNAME"] = '/var/lib/ipa/ipatuura/service.keytab'
 
-AUTH_USER_MODEL = 'ipatuura.User'
+AUTH_USER_MODEL = 'scim.User'
 
 SCIM_SERVICE_PROVIDER = {
     'NETLOC': 'localhost',
-    'USER_ADAPTER': 'ipatuura.adapters.SCIMUser',
-    'GROUP_MODEL': 'ipatuura.models.Group',
-    'GROUP_ADAPTER': 'ipatuura.adapters.SCIMGroup',
-    'SERVICE_PROVIDER_CONFIG_MODEL': 'ipatuura.models.ServiceProviderConfig',
-    'USER_FILTER_PARSER': 'ipatuura.utils.SCIMUserFilterQuery',
-    'GROUP_FILTER_PARSER': 'ipatuura.utils.SCIMGroupFilterQuery',
+    'USER_ADAPTER': 'scim.adapters.SCIMUser',
+    'GROUP_MODEL': 'scim.models.Group',
+    'GROUP_ADAPTER': 'scim.adapters.SCIMGroup',
+    'SERVICE_PROVIDER_CONFIG_MODEL': 'scim.models.ServiceProviderConfig',
+    'USER_FILTER_PARSER': 'scim.utils.SCIMUserFilterQuery',
+    'GROUP_FILTER_PARSER': 'scim.utils.SCIMGroupFilterQuery',
     'DOCUMENTATION_URI': 'https://www.rfc-editor.org/rfc/rfc7644',
     'AUTHENTICATION_SCHEMES': [
         {

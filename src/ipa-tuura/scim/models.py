@@ -17,7 +17,7 @@ from django_scim.models import (
 )
 from django_scim.settings import scim_settings
 from django_scim.utils import get_base_scim_location_getter
-from ipatuura.sssd import SSSD, SSSDNotFoundException
+from scim.sssd import SSSD, SSSDNotFoundException
 
 
 def SSSDUserToUserModel(sssd_if, sssduser):
