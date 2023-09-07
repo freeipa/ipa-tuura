@@ -199,6 +199,32 @@ def deploy_ipa_service(domain):
     keytab_file = os.path.join("/var/lib/ipa/ipatuura/", "service.keytab")
     ipa_api_connect(domain)
 
+    # add extra attribute mappings to domain
+    try:
+        sssdconfig = SSSDConfig.SSSDConfig()
+        sssdconfig.import_config()
+    except Exception as e:
+        logger.info("Unable to read SSSD config")
+        raise e
+
+    domainconfig = sssdconfig.get_domain(domain["name"])
+    try:
+        user_attrs = domainconfig.get_option("ldap_user_extra_attrs")
+    except SSSDConfig.NoOptionError:
+        user_attrs = set()
+    else:
+        user_attrs = {s.strip().lower() for s in user_attrs.split(",") if s.strip()}
+    extra_attrs = {
+        "mail:mail",
+        "sn:sn",
+        "givenname:givenname",
+    }
+    domainconfig.set_option(
+        "ldap_user_extra_attrs", ", ".join(user_attrs.union(extra_attrs))
+    )
+    sssdconfig.save_domain(domainconfig)
+    sssdconfig.write()
+
     # container image should contain the user and group
     # groupadd scim
     args = ["groupadd", "scim"]
