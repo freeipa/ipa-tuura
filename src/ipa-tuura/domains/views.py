@@ -37,6 +37,8 @@ class DomainViewSet(
         serializer.is_valid(raise_exception=True)
         try:
             add_domain(serializer.validated_data)
+        except RuntimeError as e:
+            return Response(str(e), status=status.HTTP_405_METHOD_NOT_ALLOWED)
         except Exception as e:
             raise e
         else:

@@ -89,4 +89,8 @@ class Domain(models.Model):
                     "user," "organizationalPerson," "person," "top"
                 )
 
+        # We should only have one domain registered, override primary key
+        # so that the Domain class acts as a singleton
+        self.pk = 1
+
         super().save(*args, **kwargs)
