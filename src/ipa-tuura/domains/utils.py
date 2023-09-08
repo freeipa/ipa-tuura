@@ -373,6 +373,21 @@ def add_domain(domain):
 
     Supported identity providers: ipa, ldap, and ad.
     """
+
+    # Fail is there's a domain already registered
+    try:
+        sssdconfig = SSSDConfig.SSSDConfig()
+        sssdconfig.import_config()
+        domains = sssdconfig.list_active_domains()
+    except Exception:
+        # SSSD doesn't exist
+        domains = []
+    if len(domains) > 0:
+        raise RuntimeError(
+            "An existing integration domain is already enabled, "
+            "please delete it before adding a new one."
+        )
+
     # IPA: enroll ipa-tuura as an IPA client to the domain
     # LDAP: add default ldap sssd.conf
     if domain["id_provider"] == "ipa":
