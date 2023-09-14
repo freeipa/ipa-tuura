@@ -13,6 +13,7 @@ import ipalib.errors
 import SSSDConfig
 from ipalib import api
 from ipalib.facts import is_ipa_client_configured
+from scim.models import User
 
 try:
     from ipalib.install.kinit import kinit_password
@@ -445,8 +446,10 @@ def delete_domain(domain):
 
         # ipa client uninstall moves the sssd.conf to sssd.conf.deleted
         uninstall_ipa_client()
-        return
+    else:
+        # LDAP (ad, ldap): remove domain from sssd.conf
+        # TODO: undeploy LDAP service account
+        remove_sssd_domain(domain)
 
-    # LDAP (ad, ldap): remove domian from sssd.conf
-    # TODO: undeploy LDAP service account
-    remove_sssd_domain(domain)
+    # Delete all registered users except superuser
+    User.objects.exclude(scim_username="scim").delete()
