@@ -154,7 +154,7 @@ def undeploy_ipa_service(domain):
     hostname = socket.gethostname()
     realm = domain["name"].upper()
     ipatuura_principal = "ipatuura/%s@%s" % (hostname, realm)
-    keytab_file = os.path.join("/var/lib/ipa/ipatuura/", "service.keytab")
+    keytab_file = os.environ.get("KRB5_CLIENT_KTNAME", None)
     ipa_api_connect(domain)
 
     # remove keytab
@@ -197,7 +197,7 @@ def deploy_ipa_service(domain):
     hostname = socket.gethostname()
     realm = domain["name"].upper()
     ipatuura_principal = "ipatuura/%s@%s" % (hostname, realm)
-    keytab_file = os.path.join("/var/lib/ipa/ipatuura/", "service.keytab")
+    keytab_file = os.environ.get("KRB5_CLIENT_KTNAME", None)
     ipa_api_connect(domain)
 
     # add extra attribute mappings to domain
