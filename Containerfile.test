@@ -48,6 +48,9 @@ COPY . /www/ipa-tuura
 # Install project dependencies
 RUN pip install -r /www/ipa-tuura/src/install/requirements.txt
 
+# Create data directory (volume mount point)
+RUN mkdir /www/ipa-tuura/data
+
 # packaging up model changes
 WORKDIR /www/ipa-tuura/src/ipa-tuura/
 RUN python3 manage.py makemigrations
