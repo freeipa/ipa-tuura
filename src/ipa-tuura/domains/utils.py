@@ -330,8 +330,10 @@ def join_ad_realm(domain):
         logger.info(f"Error realm discover: {proc.stderr}")
         raise Exception("Error realm discover:\n{}".format(proc.stderr))
 
-    args = ["echo", domain["client_secret"], "|", "realm", "join", realm]
-    proc = subprocess.run(args, capture_output=True, text=True)
+    args = ["sudo", "realm", "join", realm]
+    proc = subprocess.run(
+        args, input=domain["client_secret"], capture_output=True, text=True
+    )
     if proc.returncode != 0:
         logger.info(f"Error realm join: {proc.stderr}")
         raise Exception("Error realm join:\n{}".format(proc.stderr))
