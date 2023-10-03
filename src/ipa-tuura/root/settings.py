@@ -86,7 +86,7 @@ WSGI_APPLICATION = 'root.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
+        'NAME': os.path.join('/www/ipa-tuura/data', 'db.sqlite3'),
     }
 }
 
@@ -132,7 +132,7 @@ STATIC_URL = '/static/'
 
 # ipa-tuura configuration
 # We assume that an admin keytab is available
-os.environ["KRB5_CLIENT_KTNAME"] = '/var/lib/ipa/ipatuura/service.keytab'
+os.environ["KRB5_CLIENT_KTNAME"] = '/www/ipa-tuura/data/service.keytab'
 
 AUTH_USER_MODEL = 'scim.User'
 

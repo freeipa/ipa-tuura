@@ -39,6 +39,9 @@ RUN mkdir /www
 COPY . /www/ipa-tuura
 RUN pip install -r /www/ipa-tuura/src/install/requirements.txt
 
+# Create data directory (volume mount point)
+RUN mkdir /www/ipa-tuura/data
+
 # Setup ipa-tuura
 RUN echo 'LoadModule wsgi_module modules/mod_wsgi.so' >> /etc/httpd/conf/httpd.conf
 RUN sed -i 's/ALLOWED_HOSTS = \[\]/ALLOWED_HOSTS = \['"'*'"'\]/g' /www/ipa-tuura/src/ipa-tuura/root/settings.py
