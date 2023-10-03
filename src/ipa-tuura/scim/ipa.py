@@ -308,6 +308,13 @@ class LDAP:
         attrs["givenname"] = self.encode(scim_user.obj.first_name)
         attrs["mail"] = self.encode(scim_user.obj.email)
         attrs["objectClass"] = self.encode(self._user_object_classes)
+        # If user_rdn_attr is cn, add additional attributes for AD:
+        # userAccountControl is a mask.  For our purposes, 66048 is:
+        #   65536 = don't expire password
+        #   512 = normal user account
+        if self._user_rdn_attr == "cn":
+            attrs["userAccountControl"] = self.encode("66048")
+            attrs["sAMAccountName"] = self.encode(scim_user.obj.username)
         ldif = modlist.addModlist(attrs)
 
         self._bind()
