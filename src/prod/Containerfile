@@ -6,7 +6,7 @@
 # Or with podman-compose:
 # podman-compose -f src/prod/podman-compose.yaml up -d
 
-FROM registry.fedoraproject.org/fedora:38
+FROM registry.access.redhat.com/ubi9:9.2-755
 ENV TZ=Europe/Madrid
 
 LABEL org.opencontainers.image.source=https://github.com/freeipa/ipa-tuura
@@ -35,9 +35,35 @@ RUN dnf -y update && dnf -y install \
     sssd-dbus \
     unzip \
     && dnf clean all
+
+# Install bridge dependencies
+RUN dnf -y update && dnf -y install \
+    openldap-clients \
+    sssd \
+    sssd-ldap \
+    sssd-ipa \
+    realmd \
+    freeipa-client \
+    oddjob-mkhomedir \
+    && dnf clean all
+
+# Copy the source code
 RUN mkdir /www
 COPY . /www/ipa-tuura
+
+# Install project dependencies
 RUN pip install -r /www/ipa-tuura/src/install/requirements.txt
+
+# Setup Django database
+WORKDIR /www/ipa-tuura/src/ipa-tuura/
+RUN python3 manage.py makemigrations
+RUN python3 manage.py migrate
+
+# Setup Django superuser
+ENV DJANGO_SUPERUSER_PASSWORD Secret123
+ENV DJANGO_SUPERUSER_USERNAME scim
+ENV DJANGO_SUPERUSER_EMAIL scim@ipa.test
+RUN python3 manage.py createsuperuser --scim_username scim --noinput
 
 # Setup ipa-tuura
 RUN echo 'LoadModule wsgi_module modules/mod_wsgi.so' >> /etc/httpd/conf/httpd.conf
@@ -52,4 +78,15 @@ RUN sed -i 's\localhost.key\apache-selfsigned.key\g' /etc/httpd/conf.d/ssl.conf
 # Setup Apache virtual host
 COPY src/prod/conf/ipatuura.conf /etc/httpd/conf.d/ipatuura.conf
 
-CMD ["/usr/sbin/httpd", "-DFOREGROUND"]
+# Setup permissions for apache user
+RUN echo 'apache ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/apache
+RUN usermod -a -G sssd,root apache
+RUN chmod -R 770 /etc/sssd
+RUN chmod 740 /www/ipa-tuura/src/ipa-tuura/
+RUN chown apache:apache /www/ipa-tuura/src/ipa-tuura/
+RUN chown apache:apache /www/ipa-tuura/src/ipa-tuura/db.sqlite3
+
+# Enable httpd service
+RUN systemctl enable httpd
+
+CMD [ "/sbin/init" ]
