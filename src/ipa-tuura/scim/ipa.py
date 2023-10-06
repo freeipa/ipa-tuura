@@ -249,6 +249,7 @@ class LDAP:
             self._conn.simple_bind_s(self._dn, self._client_secret)
         except Exception as e:
             logger.error(f"Unable to bind to LDAP server {e}")
+            raise e
         else:
             return self._conn
 
@@ -332,6 +333,7 @@ class LDAP:
             desc = e.args[0]["desc"].strip()
             info = e.args[0].get("info", "").strip()
             logger.error(f"LDAP Error: {desc}: {info}")
+            raise e
 
     def modify(self, scim_user):
         """
@@ -384,6 +386,7 @@ class LDAP:
             desc = e.args[0]["desc"].strip()
             info = e.args[0].get("info", "").strip()
             logger.error(f"LDAP Error: {desc}: {info}")
+            raise e
 
 
 class AD(LDAP):
