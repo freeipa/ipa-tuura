@@ -50,6 +50,11 @@ def activate_ifp(domain):
         raise e
 
     try:
+        sssdconfig.new_service("ifp")
+    except SSSDConfig.ServiceAlreadyExists:
+        pass
+
+    try:
         sssdconfig.activate_service("ifp")
         ifp = sssdconfig.get_service("ifp")
     except SSSDConfig.NoServiceError as e:
@@ -84,6 +89,7 @@ def install_client(domain):
     # test client_id and client_secret before
 
     args = [
+        "sudo",
         "ipa-client-install",
         "--domain",
         domain["name"],
@@ -100,13 +106,19 @@ def install_client(domain):
     proc = subprocess.run(args, capture_output=True, text=True)
     if proc.returncode != 0:
         raise Exception("Error enrolling client:\n{}".format(proc.stderr))
+    else:
+        # Install was successful, allow users in root group to access SSSD
+        # config
+        subprocess.run(["sudo", "chmod", "-R", "770", "/etc/sssd"])
 
     return proc
 
 
 def uninstall_ipa_client():
     proc = subprocess.run(
-        ["ipa-client-install", "--uninstall", "-U"], capture_output=True, text=True
+        ["sudo", "ipa-client-install", "--uninstall", "-U"],
+        capture_output=True,
+        text=True,
     )
     if proc.returncode != 0:
         raise Exception("Error uninstalling client:\n{}".format(proc.stderr))
@@ -115,7 +127,7 @@ def uninstall_ipa_client():
 
 
 def restart_sssd():
-    args = ["systemctl", "restart", "sssd"]
+    args = ["sudo", "systemctl", "restart", "sssd"]
     proc = subprocess.run(args, capture_output=True, text=True)
     if proc.returncode != 0:
         raise Exception("Error restarting SSSD:\n{}".format(proc.stderr))
@@ -198,6 +210,8 @@ def deploy_ipa_service(domain):
     realm = domain["name"].upper()
     ipatuura_principal = "ipatuura/%s@%s" % (hostname, realm)
     keytab_file = os.environ.get("KRB5_CLIENT_KTNAME", None)
+    keytab_path = os.path.dirname(keytab_file)
+
     ipa_api_connect(domain)
 
     # add extra attribute mappings to domain
@@ -226,18 +240,7 @@ def deploy_ipa_service(domain):
     sssdconfig.save_domain(domainconfig)
     sssdconfig.write()
 
-    # container image should contain the user and group
-    # groupadd scim
-    args = ["groupadd", "scim"]
-    proc = subprocess.run(args, capture_output=True, text=True)
-    if proc.returncode != 0:
-        logger.info(f"groupadd scim: {proc.stderr}")
-
-    # useradd -r -m -d /var/lib/ipa/ipatuura -g scim scim
-    args = ["useradd", "-r", "-m", "-d", "/var/lib/ipa/ipatuura", "-g", "scim", "scim"]
-    proc = subprocess.run(args, capture_output=True, text=True)
-    if proc.returncode != 0:
-        logger.info(f"useradd scim: {proc.stderr}")
+    subprocess.run(["sudo", "mkdir", "-m", "770", "-p", keytab_path])
 
     # add service
     try:
@@ -284,8 +287,6 @@ def deploy_ipa_service(domain):
     proc = subprocess.run(args, capture_output=True, text=True)
     if proc.returncode != 0:
         raise Exception("Error getkeytab:\n{}".format(proc.stderr))
-
-    os.system("chown -R scim:scim /var/lib/ipa/ipatuura/")
 
 
 def remove_sssd_domain(domain):
@@ -337,6 +338,8 @@ def join_ad_realm(domain):
     if proc.returncode != 0:
         logger.info(f"Error realm join: {proc.stderr}")
         raise Exception("Error realm join:\n{}".format(proc.stderr))
+    else:
+        subprocess.run(["sudo", "chmod", "660", "/etc/sssd/sssd.conf"])
 
 
 def config_default_sssd(domain):
@@ -391,7 +394,7 @@ def config_default_sssd(domain):
     sssdconfig.set(domain_section, "ldap_tls_cacert", cert_location)
 
     with open(cfg, "w") as fd:
-        os.fchmod(fd.fileno(), 0o600)
+        subprocess.run(["sudo", "chmod", "660", cfg])
         sssdconfig.write(fd)
 
 
@@ -432,10 +435,12 @@ def add_domain(domain):
 
     # activate infopipe attrs and restart sssd service
     activate_ifp(domain)
-    try:
-        restart_sssd()
-    except Exception:
-        pass
+    # TODO: as a workaround until rootless SSSD is available,
+    # change permissions for sssd.conf to 600, restart and return
+    # to 660
+    subprocess.run(["sudo", "chmod", "600", "/etc/sssd/sssd.conf"])
+    restart_sssd()
+    subprocess.run(["sudo", "chmod", "660", "/etc/sssd/sssd.conf"])
 
 
 def delete_domain(domain):
