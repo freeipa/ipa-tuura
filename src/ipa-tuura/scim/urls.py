@@ -1,8 +1,8 @@
 #
-# Copyright (C) 2022  FreeIPA Contributors see COPYING for license
+# Copyright (C) 2024  FreeIPA Contributors see COPYING for license
 #
 
-"""root URL Configuration
+"""Integration Domain URL Configuration
 
 The `urlpatterns` list routes URLs to views. For more information please see:
     https://docs.djangoproject.com/en/3.0/topics/http/urls/
@@ -17,13 +17,19 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
-from django.contrib import admin
-from django.urls import include, path, re_path
+import logging
+
+from django.urls import include, re_path
+from rest_framework.routers import DefaultRouter
+from scim.views import BridgeViewSet
+
+logger = logging.getLogger(__name__)
+
+
+router = DefaultRouter()
+router.register("", BridgeViewSet, "bridge")
 
 urlpatterns = [
-    path("admin/", admin.site.urls),
-    path("scim/v2/", include("django_scim.urls")),
-    path("creds/", include("creds.urls")),
-    path("domains/v1/", include("domains.urls")),
-    path("bridge/", include("scim.urls")),
+    # we only need /bridge/login_password
+    re_path("", include(router.urls[:1])),
 ]

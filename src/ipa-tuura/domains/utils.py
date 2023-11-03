@@ -85,6 +85,25 @@ def activate_ifp(domain):
     sssdconfig.write()
 
 
+def run_ssh_command(user, host, password, command):
+    target = "{}@{}".format(user, host)
+    cmd = [
+        "sudo",
+        "sshpass",
+        "-p",
+        password,
+        "ssh",
+        target,
+        "-o",
+        "StrictHostKeyChecking=no",
+        command,
+    ]
+    proc = subprocess.run(cmd, capture_output=True)
+    logger.info(proc.stdout)
+    logger.info(proc.stderr)
+    return proc
+
+
 def install_client(domain):
     """
     :param domain
@@ -212,8 +231,11 @@ def deploy_ipa_service(domain):
     hostname = socket.gethostname()
     realm = domain["name"].upper()
     ipatuura_principal = "ipatuura/%s@%s" % (hostname, realm)
+    http_principal = "HTTP/%s@%s" % (domain["keycloak_hostname"], realm)
+    http_bridge_principal = "HTTP/%s@%s" % (socket.gethostname(), realm)
     keytab_file = os.environ.get("KRB5_CLIENT_KTNAME", None)
     keytab_path = os.path.dirname(keytab_file)
+    http_keytab_file = "/var/lib/ipatuura/httpd.keytab"
 
     ipa_api_connect(domain)
 
@@ -254,6 +276,22 @@ def deploy_ipa_service(domain):
     else:
         logger.info(f"ipa: service_add result {result}")
 
+    # add HTTP service (both keycloak and bridge hosts)
+    try:
+        result = api.Command["service_add"](krbcanonicalname=http_principal)
+    except ipalib.errors.DuplicateEntry:
+        logger.info("service %s already exists", http_principal)
+        pass
+    else:
+        logger.info(f"ipa: service_add result {result}")
+    try:
+        result = api.Command["service_add"](krbcanonicalname=http_bridge_principal)
+    except ipalib.errors.DuplicateEntry:
+        logger.info("service %s already exists", http_bridge_principal)
+        pass
+    else:
+        logger.info(f"ipa: service_add result {result}")
+
     # add role
     try:
         result = api.Command["role_add"](cn="ipatuura writable interface")
@@ -287,6 +325,16 @@ def deploy_ipa_service(domain):
 
     # get keytab
     args = ["ipa-getkeytab", "-p", ipatuura_principal, "-k", keytab_file]
+    proc = subprocess.run(args, capture_output=True, text=True)
+    if proc.returncode != 0:
+        raise Exception("Error getkeytab:\n{}".format(proc.stderr))
+
+    # get keytab for HTTP service (both keycloak and bridge hosts)
+    args = ["ipa-getkeytab", "-p", http_principal, "-k", http_keytab_file]
+    proc = subprocess.run(args, capture_output=True, text=True)
+    if proc.returncode != 0:
+        raise Exception("Error getkeytab:\n{}".format(proc.stderr))
+    args = ["ipa-getkeytab", "-p", http_bridge_principal, "-k", http_keytab_file]
     proc = subprocess.run(args, capture_output=True, text=True)
     if proc.returncode != 0:
         raise Exception("Error getkeytab:\n{}".format(proc.stderr))
@@ -374,6 +422,40 @@ def join_ad_realm(domain):
     # workaround until we have rootless SSSD
     subprocess.run(["sudo", "chmod", "660", "/etc/sssd/sssd.conf"])
 
+    # Register user and SPN for HTTP, request keytab
+    # We add keys for both keycloak host and bridge host, since we need it for
+    # internal routing performed in login_password endpoint.
+    ad_server = domainconfig.get_option("ad_server")
+    ad_realm = domainconfig.get_option("krb5_realm")
+    ad_admin = domain["client_id"].split("@")[0]
+    ad_passwd = domain["client_secret"]
+    kc_hostname = domain["keycloak_hostname"]
+    bridge_hostname = socket.gethostname()
+    spn_commands = (
+        "powershell -c '"
+        f"New-ADUser ipatuura -Enabled $true -KerberosEncryptionType AES256 -AccountPassword (convertto-securestring {ad_passwd} -AsPlainText -Force);"
+        f"setspn -S HTTP/{kc_hostname} ipatuura;"
+        f"setspn -S HTTP/{bridge_hostname} ipatuura;"
+        "$kvno = Get-ADuser ipatuura -property msDS-KeyVersionNumber | select -expand msDS-KeyVersionNumber;"
+        f"ktpass -out /httpd.keytab -mapUser ipatuura@{ad_realm} -pass {ad_passwd} -mapOp set +DumpSalt -crypto AES256-SHA1 -ptype KRB5_NT_PRINCIPAL -princ HTTP/{kc_hostname}@{ad_realm} -kvno $kvno;"
+        "$kvno = Get-ADuser ipatuura -property msDS-KeyVersionNumber | select -expand msDS-KeyVersionNumber;"
+        f"ktpass -in /httpd.keytab -out /httpd.keytab -mapUser ipatuura@{ad_realm} -pass {ad_passwd} -mapOp set +DumpSalt -crypto AES256-SHA1 -ptype KRB5_NT_PRINCIPAL -princ HTTP/{bridge_hostname}@{ad_realm} -kvno $kvno'"
+    )
+    run_ssh_command(ad_admin, ad_server, ad_passwd, spn_commands)
+
+    # Fetch generated keytab
+    subprocess.run(
+        [
+            "sudo",
+            "sshpass",
+            "-p",
+            ad_passwd,
+            "scp",
+            f"{ad_admin}@{ad_server}:C:/httpd.keytab",
+            "/var/lib/ipatuura/httpd.keytab",
+        ]
+    )
+
 
 def config_default_sssd(domain):
     """
@@ -455,6 +537,9 @@ def add_domain(domain):
             "please delete it before adding a new one."
         )
 
+    if domain["keycloak_hostname"] == socket.gethostname():
+        raise RuntimeError("Keycloak hostname must be different to bridge hostname.")
+
     # IPA: enroll ipa-tuura as an IPA client to the domain
     # LDAP: add default ldap sssd.conf
     if domain["id_provider"] == "ipa":
@@ -491,6 +576,7 @@ def delete_domain(domain):
     else:
         # LDAP (ad, ldap): remove domain from sssd.conf
         # TODO: undeploy LDAP service account
+        # TODO: undeploy AD service account
         remove_sssd_domain(domain)
 
     # Delete all registered users except superuser

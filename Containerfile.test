@@ -45,6 +45,11 @@ RUN dnf -y update && dnf -y install \
     realmd \
     freeipa-client \
     oddjob-mkhomedir \
+    mod_auth_gssapi \
+    mod_session \
+    gssproxy \
+    openssh-clients \
+    sshpass \
     && dnf clean all
 
 # Copy the source code
@@ -88,6 +93,13 @@ RUN chmod -R 770 /etc/sssd
 RUN chmod 740 /www/ipa-tuura/src/ipa-tuura/
 RUN chown apache:apache /www/ipa-tuura/src/ipa-tuura/
 RUN chown apache:apache /www/ipa-tuura/src/ipa-tuura/db.sqlite3
+
+# Setup gssproxy
+COPY prod/conf/gssproxy.conf /etc/gssproxy/80-httpd.conf
+COPY prod/conf/httpd_env.conf /etc/systemd/system/httpd.service.d/env.conf
+RUN mkdir /var/lib/ipatuura
+RUN chmod 770 /var/lib/ipatuura
+RUN systemctl enable gssproxy
 
 # Enable httpd service
 RUN systemctl enable httpd
