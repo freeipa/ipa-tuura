@@ -395,6 +395,7 @@ def config_default_sssd(domain):
 
     with open(cfg, "w") as fd:
         subprocess.run(["sudo", "chmod", "660", cfg])
+        subprocess.run(["sudo", "chown", "root:root", cfg])
         sssdconfig.write(fd)
 
 
