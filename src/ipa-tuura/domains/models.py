@@ -46,6 +46,9 @@ class Domain(models.Model):
     # Temporary admin service password
     client_secret = models.CharField(max_length=20)
 
+    # External hostname for Keycloak host
+    keycloak_hostname = models.CharField(max_length=255, blank=True)
+
     # Identity provider type
     id_provider = models.CharField(
         max_length=5,

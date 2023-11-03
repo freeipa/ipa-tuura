@@ -25,4 +25,5 @@ class DomainSerializer(ModelSerializer):
             "user_object_classes",
             "users_dn",
             "ldap_tls_cacert",
+            "keycloak_hostname",
         )
