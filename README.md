@@ -6,33 +6,174 @@
 
 # ipa-tuura
 
-This is a bridge providing SCIM 2.0 REST API, that can be deployed on a SSSD client and queries the user identities from the SSSD id provider.
+ipa-tuura is a bridge service that offers multiple Django apps for managing integration domains. Integration domains encompass identity and authentication realms, facilitating Create, Read, Update, and Delete (CRUD) operations for user and group identities, as well as user identity authentication methods. These apps provide REST API endpoints for various purposes:
 
-## Installation
+- **Administrative Endpoint (domains app)**: This app allows you to add and remove integration domains and perform client enrollment of the bridge service in the integration domain. It supports integration with FreeIPA, LDAP and Active Directory.
 
-### SSSD preparation
+- **SCIM v2 Endpoint (scim app)**: This app exposes endpoints following the [SCIMv2 specification](https://datatracker.ietf.org/doc/html/rfc7644) and it is based on the [django-scimv2 project](https://github.com/15five/django-scim2) and enables you to read and write user and group identities from/to an integration domain.
 
-Enroll the host as an IPA client:
+- **Credentials Validation (creds app)**: This app validates the presence and authenticity of specific user credentials from the enrolled integration domain.
 
-```bash
-ipa-client-install --domain ipa.test --realm IPA.TEST --principal admin --password Secret123 -U
-```
+## Quick Start
 
-The previous step creates a [domain/ipa.test] section in /etc/sssd/sssd.conf
-but sssd.conf needs to be customized in order to return additional attributes.
-
-The following script modifies sssd.conf:
+The service is deployed as a systemd container. You can build a container image based on Fedora by following these commands:
 
 ```bash
-cd $IPA_TUURA/src/install
-python prepare_sssd.py
+podman build -t fedora-bridge -f Containerfile.test .
 ```
 
-### Keycloak integration domain provisioning
+Alternatively, you can also build a production-ready RHEL image based on the same source code. Note that you need a [Red Hat Developers](https://developers.redhat.com/) account for building the image, or any other RHEL subscription if you have one:
 
-Alternatively, auto-enroll the host by providing the required integration domain fields at the SCIM user storage plugin configuration in keycloak.
+```bash
+subscription-manager register --username <username> --password <password>
+podman build -t rhel-bridge -f prod/Containerfile .
+```
+
+You can also opt for pre-built image from Quay.io: [quay.io/idmops/bridge](https://quay.io/repository/idmops/bridge)
+
+## Usage
+
+The service can be deployed on a host using the following commands:
+
+```bash
+setsebool -P container_manage_cgroup true
+podman run --name=bridge -d --privileged --dns <IP address> --add-host <host>:<IP address> -p 8000:8000 -p 3501:3500 -p 4701:81 -p 443:443 --hostname <hostname> quay.io/idmops/bridge
+```
+* Where you need to provide host details such as:
+- DNS IP address: --dns ```<IP address>```
+- The integration domain host, so that the bridge service can resolve the name: --add-host ```<host>:<IP address>```
+- The hostname where the bridge is going to be deployed: --hostname ```<hostname>```
+- The container image: quay.io/idmops/bridge points to our official image, which is regularly updated by GitHub Actions on post merge request.
+
+To enroll with an existing FreeIPA server, you can use the following CURL command:
+
+```bash
+curl -k -X POST "https://bridge.ipa.test:443/domains/v1/domain/" -H "accept: application/json" -H "Content-Type: application/json" -H "X-CSRFToken: x1yU9RGPKs4mJdWIOzEc7wKbwbnJ0B6iTHuW6ja0gdBpEOBVacK1vIhSSYlfsnRw" -d @freeipa_integration_domain.json"
+```
+* Where `freeipa_integration_domain.json` is:
+~~~
+    {
+    "name": "ipa.test",
+    "description": "IPA Integration Domain",
+    "integration_domain_url": "https://master.ipa.test",
+    "client_id": "admin",
+    "client_secret": "Secret123",
+    "id_provider": "ipa",
+    "user_extra_attrs": "mail:mail, sn:sn, givenname:givenname",
+    "user_object_classes": "",
+    "users_dn": "ou=people,dc=ipa,dc=test",
+    "ldap_tls_cacert": "/etc/openldap/certs/cacert.pem"
+    }
+~~~
+
+To un-enroll from an integration domain you can type:
+
+```bash
+curl -k -X DELETE "https://bridge.ipa.test:4430/domains/v1/domain/1/" -H "accept: application/json" -H "X-CSRFToken: x1yU9RGPKs4mJdWIOzEc7wKbwbnJ0B6iTHuW6ja0gdBpEOBVacK1vIhSSYlfsnRw"
+```
+
+The project also supports 389ds server:
+
+```bash
+curl -k -X POST "https://bridge.ipa.test:443/domains/v1/domain/" -H "accept: application/json" -H "Content-Type: application/json" -H "X-CSRFToken: x1yU9RGPKs4mJdWIOzEc7wKbwbnJ0B6iTHuW6ja0gdBpEOBVacK1vIhSSYlfsnRw" -d @rhds_integration_domain.json"
+```
+* Where `rhds_integration_domain.json` is:
+~~~
+    {
+    "name": "ldap.test",
+    "description": "LDAP Integration Domain",
+    "integration_domain_url": "https://rhds.ldap.test",
+    "client_id": "admin",
+    "client_secret": "cn=Directory Manager",
+    "id_provider": "ldap",
+    "user_extra_attrs": "mail:mail, sn:sn, givenname:givenname",
+    "user_object_classes": "",
+    "users_dn": "ou=people,dc=ldap,dc=test",
+    "ldap_tls_cacert": "/etc/openldap/certs/cacert.pem"
+    }
+~~~
+
+and Active Directory:
+
+```bash
+curl -k -X POST "https://bridge.ipa.test:4430/domains/v1/domain/" -H "accept: application/json" -H "Content-Type: application/json" -H "X-CSRFToken: x1yU9RGPKs4mJdWIOzEc7wKbwbnJ0B6iTHuW6ja0gdBpEOBVacK1vIhSSYlfsnRw" -d @ad_integration_domain.json"
+```
+* Where `ad_integration_domain.json` is:
+~~~
+    {
+    "name": "da.test",
+    "description": "AD Integration Domain",
+    "integration_domain_url": "ldap://ad.da.test",
+    "client_id": "administrator@da.test",
+    "client_secret": "Secret123",
+    "id_provider": "ad",
+    "user_extra_attrs": "mail:mail, sn:sn, givenname:givenname",
+    "user_object_classes": "",
+    "users_dn": "cn=Users,dc=da,dc=test",
+    "ldap_tls_cacert": "/etc/openldap/certs/cacert.pem"
+    }
+~~~
+
+Once the bridge service is enrolled to an integration domain, you can start using SCIMv2 app. Frist you need to get a cookie with simple authentication:
+
+```bash
+curl -k -s -X POST --data 'username=scim&password=Secret123' -c /tmp/my.cookie -b csrftoken=XzLJ9NmZTQNQcXS6v3JCNUTnV6gFVorJ -H Accept:text/html -H Content-Type:application/x-www-form-urlencoded -H 'X-CSRFToken: XzLJ9NmZTQNQcXS6v3JCNUTnV6gFVorJ' -H referer:https://bridge.ipa.test:443/admin/login/ https://bridge.ipa.test:443/admin/login/
+```
+* Where:
+~~~
+bridge.ipa.test is the host that is running the bridge service.
+~~~
+
+and this is how you can add a user using a CURL command:
+
+```bash
+curl -k --header 'Authorization: Basic ' -b /tmp/my.cookie -s --request POST --data @ipauser.json --header 'Content-Type: application/scim+json' https://bridge.ipa.test:443/scim/v2/Users
+```
+* Where `@ipauser.json` is:
+~~~
+ {
+    "schemas": ["urn:ietf:params:scim:schemas:core:2.0:User"],
+    "userName": "ftrivino",
+    "name":
+    {
+        "givenName": "Francisco",
+        "middleName": "Garcia",
+        "familyName": "Trivino"
+    },
+    "emails":
+    [{
+        "primary": true,
+        "value": "ftrivino@ipa.test",
+        "type": "work"
+    }],
+    "displayName": "ftrivino",
+    "externalId": "extId",
+    "meta":
+    {
+        "resourceType":"User"
+    }
+    "groups": [],
+    "active": true
+    }
+~~~
+
+## Real Use Case
+One significant use case for this project is to replace Keycloak User Federation Storage. You can set up your own Keycloak instance and install the following plugin:
+
+[SCIM Keycloak User Storage SPI](https://github.com/justin-stephenson/scim-keycloak-user-storage-spi/)
+
+Once you deploy your Keycloak instance and install the plugin, you can navigate to the User Federation Storage tab and enroll in an integration domain by providing the required integration domain fields at the SCIM user storage plugin configuration in keycloak.
 
 ![Keycloak integration domain](docs/images/keycloak_plugin_intg_domain_fields.png)
+
+
+## Existing limitations
+* The bridge can currently only handle user identities.
+* Authentication has not been implemented yet. A new end-point will be implemented to support GSSAPI authentication for the supported integration domains.
+* Only one integration domain is allowed per container. The domains app implements a singleton class allowing only one active integration domain. However, you can delete the existing one and enroll to a different system.
+* The bridge service is deployed as a privileged container; however, it is recommended to deploy it as non-privileged to follow best practices for container service deployment. This is because SSSD service is not currently rootless.
+
+## Developer documentation
 
 ### Django preparation
 
@@ -87,8 +228,9 @@ Finally, run the following to have django listen on all interfaces:
 ```bash
 python manage.py runserver 0.0.0.0:8000
 ```
+This command will start a lightweight development web server on the local machine.
 
-### Documentation
+## Documentation
 
 This project uses Sphinx as a documentation generator. Follow these steps to build
 the documentation:
