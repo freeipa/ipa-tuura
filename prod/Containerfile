@@ -1,16 +1,20 @@
-# Podmanfile for deploying ipa-tuura in production mode, using Apache HTTPS
-# server.
-
-# This needs to be built from root directory:
-# podman build -f src/prod/Containerfile .
+# You need a Red Hat subscription to build this container image.
+# You can register your host by following this KCS: https://access.redhat.com/solutions/253273
+#
+# Then, you can build the image by running:
+# podman build -f prod/Containerfile .
+#
 # Or with podman-compose:
-# podman-compose -f src/prod/podman-compose.yaml up -d
+# podman-compose -f prod/podman-compose.yaml up -d
 
 FROM registry.access.redhat.com/ubi9:9.2-755
+
 ENV TZ=Europe/Madrid
 
 LABEL org.opencontainers.image.source=https://github.com/freeipa/ipa-tuura
-LABEL org.opencontainers.image.description="IPA-tuura Container"
+
+# Podmanfile for deploying ipa-tuura in production mode, using Apache HTTPS server
+LABEL org.opencontainers.image.description="Production-ready ipatuura bridge service"
 
 # Install dependencies
 RUN dnf -y update && dnf -y install \
@@ -70,13 +74,13 @@ RUN echo 'LoadModule wsgi_module modules/mod_wsgi.so' >> /etc/httpd/conf/httpd.c
 RUN sed -i 's/ALLOWED_HOSTS = \[\]/ALLOWED_HOSTS = \['"'*'"'\]/g' /www/ipa-tuura/src/ipa-tuura/root/settings.py
 
 # Generate and configure self-signed certificate
-COPY src/prod/conf/ipa.conf /root
+COPY prod/conf/ipa.conf /root
 RUN openssl req -config /root/ipa.conf -newkey rsa -x509 -days 365 -out /etc/pki/tls/certs/apache-selfsigned.crt
 RUN sed -i 's\localhost.crt\apache-selfsigned.crt\g' /etc/httpd/conf.d/ssl.conf
 RUN sed -i 's\localhost.key\apache-selfsigned.key\g' /etc/httpd/conf.d/ssl.conf
 
 # Setup Apache virtual host
-COPY src/prod/conf/ipatuura.conf /etc/httpd/conf.d/ipatuura.conf
+COPY prod/conf/ipatuura.conf /etc/httpd/conf.d/ipatuura.conf
 
 # Setup permissions for apache user
 RUN echo 'apache ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/apache
