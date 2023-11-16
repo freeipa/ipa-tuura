@@ -68,8 +68,8 @@ jobs:
         if: |
           github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name
         with:
-          image: ${{ steps.build-image.outputs.image }}
-          tags: ${{ steps.build-image.outputs.tags }}
+          image: ${{ env.IMAGE_REGISTRY_GITHUB }}
+          tags: ${{ env.IMAGE_TAG }}
           registry: ${{ env.IMAGE_REGISTRY_QUAY }}
 
       - name: Print image url if PR is not from fork
