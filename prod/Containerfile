@@ -1,3 +1,4 @@
+# Containerfile to build a UBI9 RHEL based image in production mode using Apache and WSGI
 # You need a Red Hat subscription to build this container image.
 # You can register your host by following this KCS: https://access.redhat.com/solutions/253273
 #
@@ -10,13 +11,12 @@
 FROM registry.access.redhat.com/ubi9:9.2-755
 
 ENV TZ=Europe/Madrid
-
 LABEL org.opencontainers.image.source=https://github.com/freeipa/ipa-tuura
 
 # Podmanfile for deploying ipa-tuura in production mode, using Apache HTTPS server
-LABEL org.opencontainers.image.description="Production-ready ipatuura bridge service"
+LABEL org.opencontainers.image.description="UBI9 RHEL based ipa-tuura bridge service image"
 
-# Install dependencies
+# Install system dependencies
 RUN dnf -y update && dnf -y install \
     dbus-daemon \
     dbus-devel \
@@ -40,7 +40,7 @@ RUN dnf -y update && dnf -y install \
     unzip \
     && dnf clean all
 
-# Install bridge dependencies
+# Install ipa-tuura dependencies
 RUN dnf -y update && dnf -y install \
     openldap-clients \
     sssd \
@@ -58,7 +58,7 @@ COPY . /www/ipa-tuura
 # Install project dependencies
 RUN pip install -r /www/ipa-tuura/src/install/requirements.txt
 
-# Setup Django database
+# Packaging up Django model changes
 WORKDIR /www/ipa-tuura/src/ipa-tuura/
 RUN python3 manage.py makemigrations
 RUN python3 manage.py migrate
@@ -69,7 +69,7 @@ ENV DJANGO_SUPERUSER_USERNAME scim
 ENV DJANGO_SUPERUSER_EMAIL scim@ipa.test
 RUN python3 manage.py createsuperuser --scim_username scim --noinput
 
-# Setup ipa-tuura
+# Deploy Django with Apache and mod_wsgi
 RUN echo 'LoadModule wsgi_module modules/mod_wsgi.so' >> /etc/httpd/conf/httpd.conf
 RUN sed -i 's/ALLOWED_HOSTS = \[\]/ALLOWED_HOSTS = \['"'*'"'\]/g' /www/ipa-tuura/src/ipa-tuura/root/settings.py
 
@@ -79,7 +79,7 @@ RUN openssl req -config /root/ipa.conf -newkey rsa -x509 -days 365 -out /etc/pki
 RUN sed -i 's\localhost.crt\apache-selfsigned.crt\g' /etc/httpd/conf.d/ssl.conf
 RUN sed -i 's\localhost.key\apache-selfsigned.key\g' /etc/httpd/conf.d/ssl.conf
 
-# Setup Apache virtual host
+# Deploy Apache virtual host
 COPY prod/conf/ipatuura.conf /etc/httpd/conf.d/ipatuura.conf
 
 # Setup permissions for apache user

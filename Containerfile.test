@@ -1,10 +1,16 @@
-# Podmanfile for building bridge image in development mode, including Swagger.
+# Containerfile to build a Fedora based image in production mode using Apache and WSGI
+# This image is used by GitHub Actions to run Django unit tests
+#
+# You can build the image by running:
+# podman build -f Containerfile.test .
 
 FROM registry.fedoraproject.org/fedora:38
-ENV TZ=Europe/Madrid
 
+ENV TZ=Europe/Madrid
 LABEL org.opencontainers.image.source=https://github.com/freeipa/ipa-tuura
-LABEL org.opencontainers.image.description="Fedora Bridge Development Image"
+
+# Podmanfile for deploying ipa-tuura in production mode, using Apache HTTPS server
+LABEL org.opencontainers.image.description="Fedora based ipa-tuura bridge service image"
 
 # Install system dependencies
 RUN dnf -y update && dnf -y install \
@@ -30,7 +36,7 @@ RUN dnf -y update && dnf -y install \
     unzip \
     && dnf clean all
 
-# Install bridge dependencies
+# Install ipa-tuura dependencies
 RUN dnf -y update && dnf -y install \
     openldap-clients \
     sssd \
@@ -48,27 +54,42 @@ COPY . /www/ipa-tuura
 # Install project dependencies
 RUN pip install -r /www/ipa-tuura/src/install/requirements.txt
 
-# packaging up model changes
+# Install Unit Test Dependencies
+RUN pip install factory_boy coverage
+
+# Packaging up Django model changes
 WORKDIR /www/ipa-tuura/src/ipa-tuura/
 RUN python3 manage.py makemigrations
 RUN python3 manage.py migrate
 
-# ENV
+# Setup Django superuser
 ENV DJANGO_SUPERUSER_PASSWORD Secret123
 ENV DJANGO_SUPERUSER_USERNAME scim
 ENV DJANGO_SUPERUSER_EMAIL scim@ipa.test
-
-# Create user
 RUN python3 manage.py createsuperuser --scim_username scim --noinput
 
-# Configuration
-RUN sed -i 's/ALLOWED_HOSTS = \[\]/ALLOWED_HOSTS = \['"'*'"'\]/g' root/settings.py
+# Deploy Django with Apache and mod_wsgi
+RUN echo 'LoadModule wsgi_module modules/mod_wsgi.so' >> /etc/httpd/conf/httpd.conf
+RUN sed -i 's/ALLOWED_HOSTS = \[\]/ALLOWED_HOSTS = \['"'*'"'\]/g' /www/ipa-tuura/src/ipa-tuura/root/settings.py
 
-# Install Unit Test Dependencies
-RUN pip install factory_boy coverage
+# Generate and configure self-signed certificate
+COPY prod/conf/ipa.conf /root
+RUN openssl req -config /root/ipa.conf -newkey rsa -x509 -days 365 -out /etc/pki/tls/certs/apache-selfsigned.crt
+RUN sed -i 's\localhost.crt\apache-selfsigned.crt\g' /etc/httpd/conf.d/ssl.conf
+RUN sed -i 's\localhost.key\apache-selfsigned.key\g' /etc/httpd/conf.d/ssl.conf
 
-# Create and enable bridge service in devel mode (via manage.py HTTP)
-COPY bridge-devel.service /etc/systemd/system/bridge.service
-RUN systemctl enable bridge
+# Deploy Apache virtual host
+COPY prod/conf/ipatuura.conf /etc/httpd/conf.d/ipatuura.conf
+
+# Setup permissions for apache user
+RUN echo 'apache ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/apache
+RUN usermod -a -G root apache
+RUN chmod -R 770 /etc/sssd
+RUN chmod 740 /www/ipa-tuura/src/ipa-tuura/
+RUN chown apache:apache /www/ipa-tuura/src/ipa-tuura/
+RUN chown apache:apache /www/ipa-tuura/src/ipa-tuura/db.sqlite3
+
+# Enable httpd service
+RUN systemctl enable httpd
 
 CMD [ "/sbin/init" ]
