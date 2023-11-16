@@ -14,5 +14,3 @@ six
 djangorestframework
 markdown
 django-filter
-# swagger
-django-rest-swagger

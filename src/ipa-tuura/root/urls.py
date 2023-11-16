@@ -19,14 +19,10 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import include, path, re_path
-from rest_framework_swagger.views import get_swagger_view
-
-schema_view = get_swagger_view(title="Domains API")
 
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("scim/v2/", include("django_scim.urls")),
     path("creds/", include("creds.urls")),
     path("domains/v1/", include("domains.urls")),
-    re_path("domains/doc", schema_view),
 ]
