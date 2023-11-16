@@ -77,6 +77,9 @@ def activate_ifp(domain):
 
     positive_set = {"+mail", "+givenname", "+sn", "+lock"}
     ifp.set_option("user_attributes", ", ".join(user_attrs.union(positive_set)))
+    # Workaround until we have rootless SSSD
+    ifp.set_option("allowed_uids", "apache, sssd, root")
+
     sssdconfig.save_service(ifp)
 
     sssdconfig.write()
