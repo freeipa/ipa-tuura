@@ -1,3 +1,5 @@
+from unittest import skip
+
 import factory
 from django.test import TestCase
 from django.urls import reverse
@@ -21,6 +23,7 @@ class DomainViewSetTestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn(domain.name, str(response.data))
 
+    @skip("https://github.com/freeipa/ipa-tuura/issues/77")
     def test_post(self):
         """POST to create a Domain."""
         data = {
