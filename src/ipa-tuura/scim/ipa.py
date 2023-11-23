@@ -198,20 +198,20 @@ class LDAP:
 
     def __init__(self):
         self._conn = None
-        self._dn = None
+        # The client_id is used as the 'Bind DN' object
+        self._client_id = None
+        self._client_secret = None
         self._users_dn = None
         self._ldap_uri = None
         self._ldap_user_extra_attrs = None
+        self._user_rdn_attr = "uid"
         self._user_object_classes = None
         # TLS
         self._ldap_tls_cacert = None
         self._sasl_gssapi = ldap.sasl.sasl({}, "GSSAPI")
-        self._client_id = None
-        self._client_secret = None
         # init and connect
         self._fetch_domain()
         self._conn = self._bind()
-        self._user_rdn_attr = "uid"
 
     def _fetch_domain(self):
         """
@@ -220,13 +220,14 @@ class LDAP:
         domain = domains.models.Domain.objects.last()
         suffix = domain.name.split(".")
 
-        self._dn = domain.client_id
         self._ldap_uri = domain.integration_domain_url
         self._ldap_user_extra_attrs = domain.user_extra_attrs
         self._ldap_tls_cacert = domain.ldap_tls_cacert
         self._client_id = domain.client_id
         self._client_secret = domain.client_secret
         self._users_dn = domain.users_dn
+        if domain.id_provider == "ad":
+            self._user_rdn_attr = "cn"
         self._user_object_classes = [
             x.strip() for x in domain.user_object_classes.split(",")
         ]
@@ -246,7 +247,7 @@ class LDAP:
         self._conn.protocol_version = 3
         self._conn.set_option(ldap.OPT_REFERRALS, 0)
         try:
-            self._conn.simple_bind_s(self._dn, self._client_secret)
+            self._conn.simple_bind_s(self._client_id, self._client_secret)
         except Exception as e:
             logger.error(f"Unable to bind to LDAP server {e}")
             raise e
@@ -407,6 +408,13 @@ class _IPA:
         Initialize writable interface
         """
         self._apiconn = self._write(domains.models.Domain.objects.last().id_provider)
+
+    def _reset_instance(self):
+        """
+        Perform cleanup
+        """
+        self._instance = None
+        self.__init__()
 
     def _write(self, iface="ipa"):
         """
