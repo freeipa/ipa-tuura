@@ -35,6 +35,8 @@ class DomainViewSet(
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        logger.info(f"domain create {serializer.data}")
+
         try:
             add_domain(serializer.validated_data)
         except RuntimeError as e:
