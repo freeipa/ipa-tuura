@@ -408,12 +408,14 @@ class _IPA:
         Initialize writable interface
         """
         self._apiconn = self._write(domains.models.Domain.objects.last().id_provider)
+        logger.info(f"Init writable interface {self._apiconn}")
 
     def _reset_instance(self):
         """
         Perform cleanup
         """
         self._instance = None
+        logger.info("Reset writable interface")
         self.__init__()
 
     def _write(self, iface="ipa"):

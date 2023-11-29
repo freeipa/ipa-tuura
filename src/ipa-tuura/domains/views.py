@@ -17,6 +17,7 @@ from rest_framework.mixins import (
 )
 from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
+from scim.ipa import IPA
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +36,7 @@ class DomainViewSet(
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        logger.info(f"domain create {serializer.data}")
+        logger.info(f"domain create {serializer.validated_data}")
 
         try:
             add_domain(serializer.validated_data)
@@ -45,6 +46,10 @@ class DomainViewSet(
             raise e
         else:
             self.perform_create(serializer)
+
+        # reset the writable interface
+        ipa = IPA()
+        ipa._reset_instance()
 
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
@@ -80,4 +85,5 @@ class DomainViewSet(
             self.perform_destroy(instance)
         except Http404:
             pass
+
         return Response(status=status.HTTP_204_NO_CONTENT)
