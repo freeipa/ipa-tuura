@@ -13,7 +13,6 @@ import ipalib.errors
 import SSSDConfig
 from ipalib import api
 from ipalib.facts import is_ipa_client_configured
-from scim.ipa import IPA
 from scim.models import User
 
 try:
@@ -477,10 +476,6 @@ def add_domain(domain):
     subprocess.run(["sudo", "chmod", "600", "/etc/sssd/sssd.conf"])
     restart_sssd()
     subprocess.run(["sudo", "chmod", "660", "/etc/sssd/sssd.conf"])
-
-    # reset the writable interface
-    ipa = IPA()
-    ipa._reset_instance()
 
 
 def delete_domain(domain):
