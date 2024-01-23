@@ -1,16 +1,16 @@
-# Containerfile to build a Fedora based image in production mode using Apache and WSGI
+# Containerfile to build a CentOS based image in production mode using Apache and WSGI
 # This image is used by GitHub Actions to run Django unit tests
 #
 # You can build the image by running:
 # podman build -f Containerfile.test .
 
-FROM registry.fedoraproject.org/fedora:38
+FROM quay.io/centos/centos:stream9
 
 ENV TZ=Europe/Madrid
 LABEL org.opencontainers.image.source=https://github.com/freeipa/ipa-tuura
 
 # Podmanfile for deploying ipa-tuura in production mode, using Apache HTTPS server
-LABEL org.opencontainers.image.description="Fedora based ipa-tuura bridge service image"
+LABEL org.opencontainers.image.description="CentOS based ipa-tuura bridge service image"
 
 # Install system dependencies
 RUN dnf -y update && dnf -y install \
