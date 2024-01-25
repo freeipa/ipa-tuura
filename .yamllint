@@ -4,6 +4,9 @@ yaml-files:
   - '*.yml'
   - '.yamllint'
 
+ignore: |
+  .tekton/*
+
 extends: default
 rules:
   line-length:
