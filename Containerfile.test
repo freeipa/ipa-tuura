@@ -54,9 +54,6 @@ COPY . /www/ipa-tuura
 # Install project dependencies
 RUN pip install -r /www/ipa-tuura/src/install/requirements.txt
 
-# Install Unit Test Dependencies
-RUN pip install factory_boy coverage
-
 # Packaging up Django model changes
 WORKDIR /www/ipa-tuura/src/ipa-tuura/
 RUN python3 manage.py makemigrations

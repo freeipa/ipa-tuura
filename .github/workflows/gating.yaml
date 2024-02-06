@@ -18,65 +18,17 @@ jobs:
       - uses: pre-commit/action@v3.0.0
 
   build-container:
-    name: Build and push the ipa-tuura container
+    name: Build and test the ipa-tuura container
     runs-on: ubuntu-latest
     if: github.repository_owner == 'freeipa'
     needs: [pre-commit]
-    env:
-      IMAGE_REGISTRY_GITHUB: ghcr.io
-      IMAGE_REGISTRY_QUAY: quay.io/idmops/ipa-tuura
-      IMAGE_TAG: ${{ github.event.number || github.ref_name  }}  # use PR number else ref_name -> branch name
-
     steps:
-      - name: Set the ghcr.io image name derived from repository name
-        run: |
-          echo "IMAGE_REGISTRY_GITHUB=${IMAGE_REGISTRY_GITHUB}/${IMAGE,,}" >> ${GITHUB_ENV}
-        env:
-          IMAGE: '${{ github.repository }}'
-
-      - name: Log in to the GitHub Container registry
-        uses: redhat-actions/podman-login@v1
-        with:
-          registry: ${{ env.IMAGE_REGISTRY_GITHUB }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Log in to Quay.io
-        if: github.event_name != 'pull_request'
-        uses: redhat-actions/podman-login@v1
-        with:
-          registry: ${{ env.IMAGE_REGISTRY_QUAY }}
-          username: ${{ secrets.REGISTRY_USERNAME }}
-          password: ${{ secrets.REGISTRY_TOKEN }}
-
       - uses: actions/checkout@v3
-
       - name: build image
         id: build-image
         run: |
           sudo -E su
-          podman build -t ${{ env.IMAGE_REGISTRY_GITHUB }}:${{ env.IMAGE_TAG }} -f Containerfile.test .
-
-      - name: Print image
-        run: |
-          sudo -E su
-          podman images
-
-      - name: Push to Repositories if PR is not from fork
-        id: push-to-repo
-        uses: redhat-actions/push-to-registry@v2
-        if: |
-          github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name
-        with:
-          image: ${{ env.IMAGE_REGISTRY_GITHUB }}
-          tags: ${{ env.IMAGE_TAG }}
-          registry: ${{ env.IMAGE_REGISTRY_QUAY }}
-
-      - name: Print image url if PR is not from fork
-        if: |
-          github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name
-        run: echo "Image pushed to ${{ steps.push-to-repo.outputs.registry-paths }}"
-
+          podman build -t ipatuura -f Containerfile.test .
       - name: Deploy the service
         run: |
           sudo -E su
@@ -84,56 +36,11 @@ jobs:
                  -p 8000:8000 -p 3501:3500 -p 4701:81 -p 4430:443 \
                  --hostname bridge.ipa.test \
                  --name bridge \
-                 ${{ env.IMAGE_REGISTRY_GITHUB }}:${{ env.IMAGE_TAG }}
-
+                 ipatuura
       - name: Run the unit tests
         run: |
           sudo -E su
-          podman exec -it bridge sh -c "coverage run manage.py test domains -v 2 &&
+          podman exec -it bridge sh -c "pip install coverage factory_boy &&
+          coverage run manage.py test domains -v 2 &&
           coverage report &&
           coverage html"
-
-  pull-container:
-    name: Pull the ipa-tuura container if PR is not from fork
-    runs-on: ubuntu-latest
-    if: |
-      github.repository_owner == 'freeipa' &&
-      github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name
-    needs: [build-container]
-    env:
-      IMAGE_REGISTRY_GITHUB: ghcr.io
-      IMAGE_REGISTRY_QUAY: quay.io/idmops/ipa-tuura
-      IMAGE_TAG: ${{ github.event.number || github.ref_name  }}  # use PR number else ref_name -> branch name
-
-    steps:
-      - name: Set the ghcr.io image name derived from repository name (PR from repo)
-        run: |
-          echo "IMAGE_REGISTRY_GITHUB=${IMAGE_REGISTRY_GITHUB}/${IMAGE,,}" >> ${GITHUB_ENV}
-        env:
-          IMAGE: '${{ github.repository }}'
-
-      - name: Log in to the GitHub Container registry
-        uses: redhat-actions/podman-login@v1
-        with:
-          registry: ${{ env.IMAGE_REGISTRY_GITHUB }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Log in to Quay.io
-        if: github.event_name != 'pull_request'
-        uses: redhat-actions/podman-login@v1
-        with:
-          registry: ${{ env.IMAGE_REGISTRY_QUAY }}
-          username: ${{ secrets.REGISTRY_USERNAME }}
-          password: ${{ secrets.REGISTRY_TOKEN }}
-
-      - name: Pull the image previously built from GitHub Container registry
-        run: |
-          podman pull ${{ env.IMAGE_REGISTRY_GITHUB }}:${{ env.IMAGE_TAG }}
-          podman images
-
-      - name: Pull the image previously built from Quay.io
-        if: github.event_name != 'pull_request'
-        run: |
-          podman pull ${{ env.IMAGE_REGISTRY_QUAY }}:${{ env.IMAGE_TAG }}
-          podman images
