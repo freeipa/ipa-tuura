@@ -85,7 +85,7 @@ COPY prod/conf/ipatuura.conf /etc/httpd/conf.d/ipatuura.conf
 
 # Setup permissions for apache user
 RUN echo 'apache ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/apache
-RUN usermod -a -G root apache
+RUN usermod -a -G sssd,root apache
 RUN chmod -R 770 /etc/sssd
 RUN chmod 740 /www/ipa-tuura/src/ipa-tuura/
 RUN chown apache:apache /www/ipa-tuura/src/ipa-tuura/
