@@ -457,6 +457,22 @@ def join_ad_realm(domain):
     )
 
 
+def undeploy_ad_account(domain):
+    try:
+        sssdconfig = SSSDConfig.SSSDConfig()
+        sssdconfig.import_config()
+    except Exception as e:
+        logger.info("Unable to read SSSD config")
+        raise e
+
+    domainconfig = sssdconfig.get_domain(domain["name"])
+    ad_server = domainconfig.get_option("ad_server")
+    ad_admin = domain["client_id"].split("@")[0]
+    ad_passwd = domain["client_secret"]
+    cmd = "powershell -c 'Remove-ADUser -Confirm:$false ipatuura'"
+    run_ssh_command(ad_admin, ad_server, ad_passwd, cmd)
+
+
 def config_default_sssd(domain):
     """
     Setup for creating default configuration file sssd.conf
@@ -575,8 +591,8 @@ def delete_domain(domain):
         uninstall_ipa_client()
     else:
         # LDAP (ad, ldap): remove domain from sssd.conf
-        # TODO: undeploy LDAP service account
-        # TODO: undeploy AD service account
+        if domain["id_provider"] == "ad":
+            undeploy_ad_account(domain)
         remove_sssd_domain(domain)
 
     # Delete all registered users except superuser
