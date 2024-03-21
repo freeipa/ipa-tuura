@@ -1,3 +1,3 @@
 #
-# Copyright (C) 2022  FreeIPA Contributors see COPYING for license
+# Copyright (C) 2024  FreeIPA Contributors see COPYING for license
 #
