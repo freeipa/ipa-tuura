@@ -4,9 +4,6 @@
 #
 # Then, you can build the image by running:
 # podman build -f prod/Containerfile .
-#
-# Or with podman-compose:
-# podman-compose -f prod/podman-compose.yaml up -d
 
 FROM registry.access.redhat.com/ubi9:9.2-755
 

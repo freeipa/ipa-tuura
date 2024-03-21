@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2023  FreeIPA Contributors see COPYING for license
+# Copyright (C) 2024  FreeIPA Contributors see COPYING for license
 #
 
 import logging
