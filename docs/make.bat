@@ -1,5 +1,5 @@
 REM #
-REM # Copyright (C) 2022  FreeIPA Contributors see COPYING for license
+REM # Copyright (C) 2024  FreeIPA Contributors see COPYING for license
 REM #
 
 @ECHO OFF
