@@ -27,7 +27,6 @@ RUN dnf -y update && dnf -y install \
     glibc \
     httpd \
     krb5-devel \
-    maven \
     mod_ssl \
     mod_wsgi \
     openldap-devel \
