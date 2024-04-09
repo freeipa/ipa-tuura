@@ -22,6 +22,9 @@ ENV TZ=Europe/Madrid \
 RUN mkdir /www
 COPY . /www/ipa-tuura
 
+# Create data directory (volume mount point)
+RUN mkdir /www/ipa-tuura/data
+
 # Install system dependencies
 RUN dnf -y update && dnf -y install \
     dbus-daemon \
@@ -86,14 +89,13 @@ RUN echo 'apache ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/apache \
     && chmod -R 770 /etc/sssd \
     && chmod 740 /www/ipa-tuura/src/ipa-tuura/ \
     && chown apache:apache /www/ipa-tuura/src/ipa-tuura/ \
-    && chown apache:apache /www/ipa-tuura/src/ipa-tuura/db.sqlite3
+    && chmod 740 /www/ipa-tuura/data \
+    && chown -R apache:apache /www/ipa-tuura/data
 
 # Setup gssproxy
 COPY prod/conf/gssproxy.conf /etc/gssproxy/80-httpd.conf
 COPY prod/conf/httpd_env.conf /etc/systemd/system/httpd.service.d/env.conf
-RUN mkdir /var/lib/ipatuura \
-    && chmod 770 /var/lib/ipatuura \
-    && systemctl enable gssproxy
+RUN systemctl enable gssproxy
 
 # Enable httpd service
 RUN systemctl enable httpd

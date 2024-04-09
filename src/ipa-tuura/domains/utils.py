@@ -235,7 +235,7 @@ def deploy_ipa_service(domain):
     http_bridge_principal = "HTTP/%s@%s" % (socket.gethostname(), realm)
     keytab_file = os.environ.get("KRB5_CLIENT_KTNAME", None)
     keytab_path = os.path.dirname(keytab_file)
-    http_keytab_file = "/var/lib/ipatuura/httpd.keytab"
+    http_keytab_file = "/www/ipa-tuura/data/httpd.keytab"
 
     ipa_api_connect(domain)
 
@@ -452,7 +452,7 @@ def join_ad_realm(domain):
             ad_passwd,
             "scp",
             f"{ad_admin}@{ad_server}:C:/httpd.keytab",
-            "/var/lib/ipatuura/httpd.keytab",
+            "/www/ipa-tuura/data/httpd.keytab",
         ]
     )
 
