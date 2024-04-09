@@ -37,13 +37,14 @@ The service can be deployed on a host using the following commands:
 
 ```bash
 setsebool -P container_manage_cgroup true
-podman run --name=bridge -d --privileged --dns <IP address> --add-host <host>:<IP address> -p 8000:8000 -p 3501:3500 -p 4701:81 -p 443:443 --hostname <hostname> quay.io/idmops/bridge
+podman run --name=bridge -d --privileged --dns <IP address> --add-host <host>:<IP address> -p 8000:8000 -p 3501:3500 -p 4701:81 -p 443:443 --hostname <hostname> quay.io/idmops/bridge --mount type=volume,src=bridge-data,target=/www/ipa-tuura/data
 ```
 * Where you need to provide host details such as:
 - DNS IP address: --dns ```<IP address>```
 - The integration domain host, so that the bridge service can resolve the name: --add-host ```<host>:<IP address>```
 - The hostname where the bridge is going to be deployed: --hostname ```<hostname>```
 - The container image: quay.io/idmops/bridge points to our official image, which is regularly updated by GitHub Actions on post merge request.
+- The volume for storing persistent ipa-tuura data, with target `/www/ipa-tuura/data`
 
 To enroll with an existing FreeIPA server, you can use the following CURL command:
 
