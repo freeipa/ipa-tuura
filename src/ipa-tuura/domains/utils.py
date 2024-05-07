@@ -496,7 +496,6 @@ def config_default_sssd(domain):
     sssdconfig.optionxform = str
 
     sssdconfig.add_section("sssd")
-    sssdconfig.set("sssd", "config_file_version", "2")
     sssdconfig.set("sssd", "domains", domainname)
     sssdconfig.set("sssd", "services", "nss, pam, ifp")
     domain_section = "%s/%s" % ("domain", domainname)
