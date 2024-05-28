@@ -28,14 +28,14 @@ The service is deployed as a systemd container. You can build a container image
 based on CentOS Stream by following these commands:
 
 ```bash
-podman build -t centos-bridge -f Containerfile.test .
+podman build -t centos-bridge -f Containerfile .
 ```
 
 Alternatively, you can also build a production-ready RHEL image based on the same source code. Note that you need a [Red Hat Developers](https://developers.redhat.com/) account for building the image, or any other RHEL subscription if you have one:
 
 ```bash
 subscription-manager register --username <username> --password <password>
-podman build -t rhel-bridge -f prod/Containerfile .
+podman build -t rhel-bridge --build-arg="BASE_IMAGE=registry.access.redhat.com/ubi9:latest" -f Containerfile .
 ```
 
 You can also opt for pre-built image from Quay.io: [quay.io/freeipa/ipa-tuura](https://quay.io/repository/freeipa/ipa-tuura)
