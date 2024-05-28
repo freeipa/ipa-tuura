@@ -28,7 +28,7 @@ jobs:
         id: build-image
         run: |
           sudo -E su
-          podman build -t ipatuura -f Containerfile.test .
+          podman build -t ipatuura -f Containerfile .
       - name: Deploy the service
         run: |
           sudo -E su

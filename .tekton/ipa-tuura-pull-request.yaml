@@ -19,7 +19,9 @@ metadata:
 spec:
   params:
   - name: dockerfile
-    value: Containerfile.test
+    value: Containerfile
+  - name: build_args
+    value: ["BASE_IMAGE=quay.io/centos/centos:stream9"]
   - name: git-url
     value: '{{source_url}}'
   - name: image-expires-after
