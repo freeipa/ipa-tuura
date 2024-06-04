@@ -20,7 +20,7 @@ spec:
   params:
   - name: dockerfile
     value: Containerfile
-  - name: build_args
+  - name: build-args
     value: ["BASE_IMAGE=quay.io/centos/centos:stream9"]
   - name: git-url
     value: '{{source_url}}'
@@ -87,6 +87,10 @@ spec:
         path-context
       name: dockerfile
       type: string
+    - name: build-args
+      description: Array of --build-arg values ("arg=value" strings)
+      type: array
+      default: []
     - default: "false"
       description: Force rebuild image
       name: rebuild
@@ -205,6 +209,9 @@ spec:
         value: $(params.output-image)
       - name: DOCKERFILE
         value: $(params.dockerfile)
+      - name: BUILD_ARGS
+        value:
+          - $(params.build-args[*])
       - name: CONTEXT
         value: $(params.path-context)
       - name: HERMETIC
