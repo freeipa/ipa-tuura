@@ -20,7 +20,7 @@ spec:
   - name: dockerfile
     value: Containerfile
   - name: build-args
-    value: ["BASE_IMAGE=quay.io/centos/centos:stream9"]
+    value: ["BASE_IMAGE=registry.access.redhat.com/ubi9:latest"]
   - name: git-url
     value: '{{source_url}}'
   - name: output-image
