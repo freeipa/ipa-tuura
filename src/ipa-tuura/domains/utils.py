@@ -416,6 +416,10 @@ def join_ad_realm(domain):
     domainconfig.set_option(
         "ldap_user_extra_attrs", ", ".join(user_attrs.union(extra_attrs))
     )
+
+    # Set use_fully_qualified_names to False so that AD behavior matches IPA and LDAP
+    domainconfig.set_option("use_fully_qualified_names", "False")
+
     sssdconfig.save_domain(domainconfig)
     sssdconfig.write()
 
