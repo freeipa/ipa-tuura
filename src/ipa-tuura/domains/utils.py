@@ -416,6 +416,10 @@ def join_ad_realm(domain):
     domainconfig.set_option(
         "ldap_user_extra_attrs", ", ".join(user_attrs.union(extra_attrs))
     )
+
+    # Remove use_fully_qualified_names so that AD behavior matches IPA and LDAP
+    domainconfig.remove_option("use_fully_qualified_names")
+
     sssdconfig.save_domain(domainconfig)
     sssdconfig.write()
 
@@ -511,7 +515,6 @@ def config_default_sssd(domain):
     sssdconfig.set(domain_section, "ldap_user_extra_attrs", ldap_user_extra_attrs)
     sssdconfig.set(domain_section, "ldap_default_bind_dn", domain["client_id"])
     sssdconfig.set(domain_section, "ldap_default_authtok", domain["client_secret"])
-    sssdconfig.set(domain_section, "use_fully_qualified_names", "True")
     sssdconfig.set(domain_section, "cache_credentials", "True")
     sssdconfig.set(domain_section, "enumerate", "True")
     sssdconfig.set(domain_section, "timeout", "60")
