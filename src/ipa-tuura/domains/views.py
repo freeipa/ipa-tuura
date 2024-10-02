@@ -3,6 +3,7 @@
 #
 
 import logging
+import threading
 
 from django.http import Http404
 from domains.adapters import DomainSerializer
@@ -38,20 +39,27 @@ class DomainViewSet(
         serializer.is_valid(raise_exception=True)
         logger.info(f"domain create {serializer.validated_data}")
 
-        try:
-            add_domain(serializer.validated_data)
-        except RuntimeError as e:
-            return Response(str(e), status=status.HTTP_405_METHOD_NOT_ALLOWED)
-        except Exception as e:
-            raise e
-        else:
-            self.perform_create(serializer)
+        # Define the background process for handling the domain addition
+        def process_domain_creation():
+            try:
+                add_domain(serializer.validated_data)
+            except RuntimeError as e:
+                return Response(str(e), status=status.HTTP_405_METHOD_NOT_ALLOWED)
+            except Exception as e:
+                raise e
+            else:
+                self.perform_create(serializer)
 
-        # reset the writable interface
-        ipa = IPA()
-        ipa._reset_instance()
+            # reset the writable interface
+            ipa = IPA()
+            ipa._reset_instance()
 
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+        # Run the domain creation logic in a separate thread
+        thread = threading.Thread(target=process_domain_creation)
+        thread.start()
+
+        # Return the created response
+        return Response(serializer.validated_data, status=status.HTTP_202_ACCEPTED)
 
     # handles GETs for 1 Domain
     def retrieve(self, request, *args, **kwargs):
