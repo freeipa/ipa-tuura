@@ -7,7 +7,8 @@ metadata:
     build.appstudio.redhat.com/pull_request_number: '{{pull_request_number}}'
     build.appstudio.redhat.com/target_branch: '{{target_branch}}'
     pipelinesascode.tekton.dev/max-keep-runs: "3"
-    pipelinesascode.tekton.dev/on-cel-expression: event == "pull_request" && target_branch == "main"
+    pipelinesascode.tekton.dev/on-cel-expression: event == "pull_request" && target_branch
+      == "main"
   creationTimestamp: null
   labels:
     appstudio.openshift.io/application: ipa-tuura
@@ -20,7 +21,8 @@ spec:
   - name: dockerfile
     value: Containerfile
   - name: build-args
-    value: ["BASE_IMAGE=registry.access.redhat.com/ubi9:latest"]
+    value:
+    - BASE_IMAGE=registry.access.redhat.com/ubi9:latest
   - name: git-url
     value: '{{source_url}}'
   - name: image-expires-after
@@ -77,17 +79,19 @@ spec:
       name: output-image
       type: string
     - default: .
-      description: Path to the source code of an application's component from where to build image.
+      description: Path to the source code of an application's component from where
+        to build image.
       name: path-context
       type: string
     - default: Dockerfile
-      description: Path to the Dockerfile inside the context specified by parameter path-context
+      description: Path to the Dockerfile inside the context specified by parameter
+        path-context
       name: dockerfile
       type: string
-    - name: build-args
+    - default: []
       description: Array of --build-arg values ("arg=value" strings)
+      name: build-args
       type: array
-      default: []
     - default: "false"
       description: Force rebuild image
       name: rebuild
@@ -109,7 +113,8 @@ spec:
       name: java
       type: string
     - default: ""
-      description: Image tag expiration time, time values could be something like 1h, 2d, 3w for hours, days, and weeks, respectively.
+      description: Image tag expiration time, time values could be something like
+        1h, 2d, 3w for hours, days, and weeks, respectively.
       name: image-expires-after
     - default: "false"
       description: Build a source image.
@@ -306,6 +311,11 @@ spec:
         values:
         - "false"
     - name: sast-snyk-check
+      params:
+      - name: image-digest
+        value: $(tasks.build-container.results.IMAGE_DIGEST)
+      - name: image-url
+        value: $(tasks.build-container.results.IMAGE_URL)
       runAfter:
       - build-container
       taskRef:
@@ -325,11 +335,6 @@ spec:
       workspaces:
       - name: workspace
         workspace: workspace
-      params:
-      - name: image-digest
-        value: $(tasks.build-container.results.IMAGE_DIGEST)
-      - name: image-url
-        value: $(tasks.build-container.results.IMAGE_URL)
     - name: clamav-scan
       params:
       - name: image-digest
@@ -378,7 +383,8 @@ spec:
     - name: workspace
     - name: git-auth
       optional: true
-  taskRunTemplate: {}
+  taskRunTemplate:
+    serviceAccountName: build-pipeline-ipa-tuura
   workspaces:
   - name: workspace
     volumeClaimTemplate:
