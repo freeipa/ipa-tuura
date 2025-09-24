@@ -28,7 +28,7 @@ repos:
       - id: yamllint
 
   - repo: https://github.com/ambv/black
-    rev: 25.1.0
+    rev: 25.9.0
     hooks:
       - id: black
         exclude: ^(doc/|src/ipa-tuura/scim/migrations/|src/ipa-tuura/domains/migrations/|src/ipa-tuura/root/settings).*
