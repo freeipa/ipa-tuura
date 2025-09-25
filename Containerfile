@@ -16,16 +16,13 @@ ENV TZ=Europe/Madrid \
     DJANGO_SUPERUSER_USERNAME=scim \
     DJANGO_SUPERUSER_EMAIL=scim@ipa.test
 
-# Copy the source code
-RUN mkdir /www
-COPY . /www/ipa-tuura
-
 # Install system dependencies
 RUN dnf -y update && dnf -y install \
     dbus-daemon \
     dbus-devel \
     gcc \
     glib2-devel \
+    git \
     glibc \
     httpd \
     krb5-devel \
@@ -42,6 +39,10 @@ RUN dnf -y update && dnf -y install \
     sssd-dbus \
     unzip \
     && dnf clean all
+
+# Copy the source code
+WORKDIR /www
+RUN git clone https://github.com/freeipa/ipa-tuura ipa-tuura
 
 # Install ipa-tuura dependencies
 RUN dnf -y update && dnf -y install \
@@ -60,6 +61,9 @@ RUN dnf -y update && dnf -y install \
     && dnf clean all \
     && pip install -r /www/ipa-tuura/src/install/requirements.txt
 
+RUN ls /www
+RUN ls /www/ipa-tuura
+
 # Django setup
 WORKDIR /www/ipa-tuura/src/ipa-tuura/
 RUN python3 manage.py makemigrations \
@@ -69,13 +73,13 @@ RUN python3 manage.py makemigrations \
     && sed -i 's/ALLOWED_HOSTS = \[\]/ALLOWED_HOSTS = \['"'*'"'\]/g' /www/ipa-tuura/src/ipa-tuura/root/settings.py
 
 # Generate and configure self-signed certificate
-COPY conf/ipa.conf /root
+RUN cp /www/ipa-tuura/conf/ipa.conf /root
 RUN openssl req -config /root/ipa.conf -newkey rsa -x509 -days 365 -out /etc/pki/tls/certs/apache-selfsigned.crt \
     && sed -i 's\localhost.crt\apache-selfsigned.crt\g' /etc/httpd/conf.d/ssl.conf \
     && sed -i 's\localhost.key\apache-selfsigned.key\g' /etc/httpd/conf.d/ssl.conf
 
 # Deploy Apache virtual host
-COPY conf/ipatuura.conf /etc/httpd/conf.d/ipatuura.conf
+RUN cp /www/ipa-tuura/conf/ipatuura.conf /etc/httpd/conf.d/ipatuura.conf
 
 # Setup permissions for apache user
 RUN echo 'apache ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/apache \
@@ -86,8 +90,10 @@ RUN echo 'apache ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/apache \
     && chown apache:apache /www/ipa-tuura/src/ipa-tuura/db.sqlite3
 
 # Setup gssproxy
-COPY conf/gssproxy.conf /etc/gssproxy/80-httpd.conf
-COPY conf/httpd_env.conf /etc/systemd/system/httpd.service.d/env.conf
+RUN mkdir -m 0755 -p /etc/gssproxy \
+    && cp /www/ipa-tuura/conf/gssproxy.conf /etc/gssproxy/80-httpd.conf
+RUN mkdir -m 0755 -p /etc/systemd/system/httpd.service.d \
+    && cp /www/ipa-tuura/conf/httpd_env.conf /etc/systemd/system/httpd.service.d/env.conf
 RUN mkdir /var/lib/ipatuura \
     && chmod 770 /var/lib/ipatuura \
     && systemctl enable gssproxy
