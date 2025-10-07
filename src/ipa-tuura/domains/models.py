@@ -68,7 +68,7 @@ class Domain(models.Model):
 
     # LDAP auth with TLS support, the file path for now
     # TODO: base64 decode CA cert from HTTP request
-    ldap_tls_cacert = models.CharField(max_length=100)
+    ldap_tls_cacert = models.CharField(max_length=100, blank=True)
 
     def __str__(self):
         return self.name
