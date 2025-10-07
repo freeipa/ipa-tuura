@@ -85,6 +85,9 @@ class Domain(models.Model):
                 self.user_object_classes = (
                     "inetOrgPerson," "organizationalPerson," "person," "top"
                 )
+            # This will be overwritten by AD/IPA providers with realm join
+            if not self.ldap_tls_cacert:
+                self.ldap_tls_cacert = "/etc/openldap/certs/cacert.pem"
 
         elif self.id_provider == "ad":
             if not self.user_object_classes:
