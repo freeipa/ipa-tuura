@@ -91,7 +91,7 @@ curl -k -X POST "https://bridge.ipa.test/domains/v1/domain/" -H "accept: applica
     {
     "name": "ldap.test",
     "description": "LDAP Integration Domain",
-    "integration_domain_url": "https://rhds.ldap.test",
+    "integration_domain_url": "ldap://rhds.ldap.test",
     "client_id": "admin",
     "client_secret": "cn=Directory Manager",
     "id_provider": "ldap",
