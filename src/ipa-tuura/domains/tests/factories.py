@@ -9,7 +9,7 @@ class DomainFactory(DjangoModelFactory):
     client_id = "admin"
     client_secret = "Secret123"
     id_provider = "ipa"
-    user_extra_attrs = "mail:mail, sn:sn, givenname:givenname"
+    user_extra_attrs = "mail, sn, givenname"
     user_object_classes = ""
     users_dn = "ou=people,dc=ldap,dc=test"
     ldap_tls_cacert = "/etc/openldap/certs/cacert.pem"

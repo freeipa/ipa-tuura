@@ -78,7 +78,7 @@ class Domain(models.Model):
     def save(self, *args, **kwargs):
         # logic for default vaules part of simplification process
         if not self.user_extra_attrs:
-            self.user_extra_attrs = "mail:mail, sn:sn, givenname:givenname"
+            self.user_extra_attrs = "mail, sn, givenname"
 
         if self.id_provider == "ldap":
             if not self.user_object_classes:

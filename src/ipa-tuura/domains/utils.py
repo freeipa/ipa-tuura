@@ -255,9 +255,9 @@ def deploy_ipa_service(domain):
     else:
         user_attrs = {s.strip().lower() for s in user_attrs.split(",") if s.strip()}
     extra_attrs = {
-        "mail:mail",
-        "sn:sn",
-        "givenname:givenname",
+        "mail",
+        "sn",
+        "givenname",
     }
     domainconfig.set_option(
         "ldap_user_extra_attrs", ", ".join(user_attrs.union(extra_attrs))
@@ -409,9 +409,9 @@ def join_ad_realm(domain):
     else:
         user_attrs = {s.strip().lower() for s in user_attrs.split(",") if s.strip()}
     extra_attrs = {
-        "mail:mail",
-        "sn:sn",
-        "givenname:givenname",
+        "mail",
+        "sn",
+        "givenname",
     }
     domainconfig.set_option(
         "ldap_user_extra_attrs", ", ".join(user_attrs.union(extra_attrs))
@@ -489,11 +489,9 @@ def config_default_sssd(domain):
     id_provider = domain["id_provider"]
     ldap_uri = domain["integration_domain_url"]
     try:
-        ldap_user_extra_attrs = (
-            domain["user_extra_attrs"] + "mail:mail, sn:sn, givenname:givenname"
-        )
+        ldap_user_extra_attrs = domain["user_extra_attrs"] + "mail, sn, givenname"
     except KeyError:
-        ldap_user_extra_attrs = "mail:mail, sn:sn, givenname:givenname"
+        ldap_user_extra_attrs = "mail, sn, givenname"
 
     cfg = "/etc/sssd/sssd.conf"
     sssdconfig = ConfigParser.RawConfigParser()
