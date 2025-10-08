@@ -33,7 +33,7 @@ class DomainViewSetTestCase(TestCase):
             "client_id": "cn=Directory Manager",
             "client_secret": "Secret123",
             "id_provider": "ldap",
-            "user_extra_attrs": "mail:mail, sn:sn, givenname:givenname",
+            "user_extra_attrs": "mail, sn, givenname",
             "user_object_classes": "inetOrgPerson,organizationalPerson,person,top",
             "users_dn": "ou=people,dc=ldap,dc=test",
             "ldap_tls_cacert": "/etc/openldap/certs/cacert.pem",
