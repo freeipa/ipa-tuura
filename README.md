@@ -69,9 +69,7 @@ curl -k -X POST "https://bridge.ipa.test/domains/v1/domain/" -H "accept: applica
     "client_secret": "Secret123",
     "id_provider": "ipa",
     "user_extra_attrs": "mail, sn, givenname",
-    "user_object_classes": "",
     "users_dn": "ou=people,dc=ipa,dc=test",
-    "ldap_tls_cacert": "/etc/openldap/certs/cacert.pem"
     }
 ~~~
 
@@ -96,9 +94,7 @@ curl -k -X POST "https://bridge.ipa.test/domains/v1/domain/" -H "accept: applica
     "client_secret": "cn=Directory Manager",
     "id_provider": "ldap",
     "user_extra_attrs": "mail, sn, givenname",
-    "user_object_classes": "",
     "users_dn": "ou=people,dc=ldap,dc=test",
-    "ldap_tls_cacert": "/etc/openldap/certs/cacert.pem"
     }
 ~~~
 
@@ -117,11 +113,14 @@ curl -k -X POST "https://bridge.ipa.test/domains/v1/domain/" -H "accept: applica
     "client_secret": "Secret123",
     "id_provider": "ad",
     "user_extra_attrs": "mail:mail, sn:sn, givenname:givenname",
-    "user_object_classes": "",
     "users_dn": "cn=Users,dc=da,dc=test",
-    "ldap_tls_cacert": "/etc/openldap/certs/cacert.pem"
     }
 ~~~
+
+Note that certain optional fields can be added to the above `.json` files to override default values.
+
+* **user_object_classes**: objectClass attribute(s) set when users are added to backend
+* **ldap_tls_cacert**: override default CA certificate filename path
 
 Once the bridge service is enrolled to an integration domain, you can start using SCIMv2 app. Frist you need to get a cookie with simple authentication:
 
